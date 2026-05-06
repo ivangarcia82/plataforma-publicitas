@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Ejecutivo {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @default("")
+  telefono  String   @default("")
+  cargo     String   @default("")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  citasComerciales CitaComercial[]
+  obsequios        Obsequio[]
+  citasGeneradas   CitaGenerada[]
+}
+
+model Empresa {
+  id           String   @id @default(cuid())
+  nombre       String
+  ciudadEstado String   @default("")
+  notas        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clientes Cliente[]
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  cargo     String   @default("")
+  email     String   @default("")
+  telefono  String   @default("")
+  notas     String   @default("")
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  citasComerciales CitaComercial[]
+  obsequios        Obsequio[]
+  citasGeneradas   CitaGenerada[]
+}
+
+model CitaComercial {
+  id          String   @id @default(cuid())
+  ejecutivoId String
+  ejecutivo   Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
+  clienteId   String
+  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  dia         String
+  status      String   @default("Tentativa")
+  horario     String
+  transporte  String   @default("")
+  notas       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model StaffMember {
+  id              String   @id @default(cuid())
+  nombre          String
+  rol             String   @default("Staff")
+  diaAsignado     String
+  horarioEntrada  String
+  horarioSalida   String
+  horaComida      String   @default("")
+  seccion         String   @default("")
+  viaticoCantidad Float    @default(0)
+  viaticoStatus   String   @default("Pendiente")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Obsequio {
+  id            String   @id @default(cuid())
+  fecha         String
+  ejecutivoId   String
+  ejecutivo     Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
+  clienteId     String
+  cliente       Cliente   @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  tipoCliente   String   @default("Prospecto")
+  articulo      String   @default("")
+  observaciones String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CitaGenerada {
+  id          String   @id @default(cuid())
+  fecha       String
+  ejecutivoId String
+  ejecutivo   Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
+  clienteId   String
+  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  accion      String   @default("Otro")
+  notas       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventarioObsequio {
+  id           String   @id @default(cuid())
+  nombre       String
+  stockTotal   Int
+  stockActual  Int
+  alertaMinimo Int      @default(5)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MaterialDigital {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String   @default("")
+  categoria   String   @default("General")
+  url         String
+  tipo        String   @default("pdf")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  nombre    String
+  empresa   String   @default("")
+  cargo     String   @default("")
+  rating    Int      @default(5)
+  texto     String
+  createdAt DateTime @default(now())
+}
