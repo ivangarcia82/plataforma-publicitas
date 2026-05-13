@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlineStar, HiStar, HiOutlineCheckCircle } from 'react-icons/hi2'
+import { FaInstagram, FaLinkedinIn } from 'react-icons/fa6'
 
 interface Ejecutivo { id: string; nombre: string }
 
@@ -61,6 +62,58 @@ export default function SatisfaccionPage() {
             <div style={{ fontSize: '52px', fontWeight: 800, color: '#F5821F', lineHeight: 1 }}>#{done.numeroTicket}</div>
           </div>
           <p style={{ fontSize: '12px', color: '#9b9bab', margin: '20px 0 0' }}>Mantente atento, los ganadores se anunciarán en pantalla.</p>
+
+          <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid #f0f0f4' }}>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', margin: '0 0 12px' }}>
+              Síguenos para más novedades
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <a
+                href="https://instagram.com/generandoideasgi"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  flex: 1,
+                  maxWidth: '180px',
+                }}
+              >
+                <FaInstagram style={{ fontSize: '18px' }} /> Instagram
+              </a>
+              <a
+                href="https://www.linkedin.com/company/generandoideas"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  background: '#0077b5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  flex: 1,
+                  maxWidth: '180px',
+                }}
+              >
+                <FaLinkedinIn style={{ fontSize: '18px' }} /> LinkedIn
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     )
