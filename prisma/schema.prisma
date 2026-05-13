@@ -20,6 +20,7 @@ model Ejecutivo {
   citasComerciales CitaComercial[]
   obsequios        Obsequio[]
   citasGeneradas   CitaGenerada[]
+  empresas         Empresa[]
 }
 
 model Empresa {
@@ -27,6 +28,8 @@ model Empresa {
   nombre       String
   ciudadEstado String   @default("")
   notas        String   @default("")
+  ejecutivoId  String
+  ejecutivo    Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

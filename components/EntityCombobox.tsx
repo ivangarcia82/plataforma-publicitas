@@ -80,7 +80,7 @@ export default function EntityCombobox({
   const openQuickCreate = () => {
     const initial: Record<string, string | boolean> = { nombre: query.trim() }
     if (tipo === 'ejecutivo') Object.assign(initial, { email: '', telefono: '', cargo: '', activo: true })
-    if (tipo === 'empresa') Object.assign(initial, { ciudadEstado: '', notas: '' })
+    if (tipo === 'empresa') Object.assign(initial, { ciudadEstado: '', notas: '', ejecutivoId: '' })
     if (tipo === 'cliente') Object.assign(initial, { cargo: '', email: '', telefono: '', notas: '', empresaId: empresaId || '' })
     setQuickCreateForm(initial)
     setShowQuickCreate(true)
@@ -91,6 +91,10 @@ export default function EntityCombobox({
     e.preventDefault()
     if (tipo === 'cliente' && !quickCreateForm.empresaId) {
       toast.error('Selecciona una empresa primero en el formulario.')
+      return
+    }
+    if (tipo === 'empresa' && !quickCreateForm.ejecutivoId) {
+      toast.error('Selecciona un ejecutivo asignado.')
       return
     }
     const res = await fetch(ENDPOINT[tipo], {
@@ -203,10 +207,21 @@ export default function EntityCombobox({
                 </>
               )}
               {tipo === 'empresa' && (
-                <div className="form-group">
-                  <label>Ciudad / Estado</label>
-                  <input className="input" value={(quickCreateForm.ciudadEstado as string) || ''} onChange={e => setQuickCreateForm(p => ({ ...p, ciudadEstado: e.target.value }))} />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label>Ciudad / Estado</label>
+                    <input className="input" value={(quickCreateForm.ciudadEstado as string) || ''} onChange={e => setQuickCreateForm(p => ({ ...p, ciudadEstado: e.target.value }))} />
+                  </div>
+                  <div className="form-group">
+                    <label>Ejecutivo asignado</label>
+                    <EntityCombobox
+                      tipo="ejecutivo"
+                      value={(quickCreateForm.ejecutivoId as string) || ''}
+                      onChange={id => setQuickCreateForm(p => ({ ...p, ejecutivoId: id }))}
+                      required
+                    />
+                  </div>
+                </>
               )}
               {tipo === 'cliente' && (
                 <div className="form-row">

@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, use } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineArrowLeft } from 'react-icons/hi2'
+import EntityCombobox from '@/components/EntityCombobox'
 
 interface Cliente {
   id: string
@@ -15,11 +16,15 @@ interface Cliente {
   notas: string
 }
 
+interface Ejecutivo { id: string; nombre: string }
+
 interface Empresa {
   id: string
   nombre: string
   ciudadEstado: string
   notas: string
+  ejecutivoId: string
+  ejecutivo: Ejecutivo
   clientes: Cliente[]
 }
 
@@ -32,6 +37,8 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Cliente | null>(null)
   const [form, setForm] = useState(emptyClienteForm)
+  const [showEjecutivoModal, setShowEjecutivoModal] = useState(false)
+  const [newEjecutivoId, setNewEjecutivoId] = useState('')
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/catalogos/empresas/${id}`)
@@ -77,6 +84,25 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
     fetchData()
   }
 
+  const openChangeEjecutivo = () => {
+    if (!empresa) return
+    setNewEjecutivoId(empresa.ejecutivoId)
+    setShowEjecutivoModal(true)
+  }
+
+  const handleChangeEjecutivo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEjecutivoId) { toast.error('Selecciona un ejecutivo'); return }
+    await fetch('/api/catalogos/empresas', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ejecutivoId: newEjecutivoId }),
+    })
+    toast.success('Ejecutivo actualizado')
+    setShowEjecutivoModal(false)
+    fetchData()
+  }
+
   if (loading) return <div className="empty-state"><p>Cargando...</p></div>
   if (!empresa) return <div className="empty-state"><p>Empresa no encontrada</p></div>
 
@@ -92,6 +118,16 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
         </div>
         <button className="btn btn-primary" onClick={openCreate}>
           <HiOutlinePlus /> Agregar Contacto
+        </button>
+      </div>
+
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', fontWeight: 700, marginBottom: '4px' }}>Ejecutivo asignado</div>
+          <div style={{ fontSize: '15px', fontWeight: 600 }}>{empresa.ejecutivo.nombre}</div>
+        </div>
+        <button className="btn btn-secondary" onClick={openChangeEjecutivo}>
+          <HiOutlinePencil /> Cambiar
         </button>
       </div>
 
@@ -169,6 +205,31 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">{editing ? 'Guardar Cambios' : 'Agregar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEjecutivoModal && (
+        <div className="modal-overlay" onClick={() => setShowEjecutivoModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px', margin: '0 0 24px' }}>
+              Cambiar ejecutivo asignado
+            </h2>
+            <form onSubmit={handleChangeEjecutivo}>
+              <div className="form-group">
+                <label>Ejecutivo</label>
+                <EntityCombobox
+                  tipo="ejecutivo"
+                  value={newEjecutivoId}
+                  onChange={setNewEjecutivoId}
+                  required
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEjecutivoModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar</button>
               </div>
             </form>
           </div>

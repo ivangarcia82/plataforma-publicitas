@@ -8,6 +8,7 @@ export async function GET(
   const empresa = await prisma.empresa.findUnique({
     where: { id },
     include: {
+      ejecutivo: true,
       clientes: { orderBy: { nombre: 'asc' } },
     },
   })

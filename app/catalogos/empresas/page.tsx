@@ -5,41 +5,54 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineBuildingOffice2 } from 'react-icons/hi2'
+import EntityCombobox from '@/components/EntityCombobox'
 
+interface Ejecutivo { id: string; nombre: string }
 interface Empresa {
   id: string
   nombre: string
   ciudadEstado: string
   notas: string
+  ejecutivoId: string
+  ejecutivo: Ejecutivo
   _count: { clientes: number }
 }
 
-const emptyForm = { nombre: '', ciudadEstado: '', notas: '' }
+const emptyForm = { nombre: '', ciudadEstado: '', notas: '', ejecutivoId: '' }
 
 export default function EmpresasPage() {
   const [data, setData] = useState<Empresa[]>([])
+  const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Empresa | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [filterEjecutivo, setFilterEjecutivo] = useState('')
 
   const fetchData = useCallback(async () => {
-    const res = await fetch('/api/catalogos/empresas')
-    setData(await res.json())
+    const params = new URLSearchParams()
+    if (filterEjecutivo) params.set('ejecutivoId', filterEjecutivo)
+    const [empresasRes, ejecutivosRes] = await Promise.all([
+      fetch(`/api/catalogos/empresas?${params}`),
+      fetch('/api/catalogos/ejecutivos?activo=true'),
+    ])
+    setData(await empresasRes.json())
+    setEjecutivos(await ejecutivosRes.json())
     setLoading(false)
-  }, [])
+  }, [filterEjecutivo])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setShowModal(true) }
   const openEdit = (item: Empresa) => {
     setEditing(item)
-    setForm({ nombre: item.nombre, ciudadEstado: item.ciudadEstado, notas: item.notas })
+    setForm({ nombre: item.nombre, ciudadEstado: item.ciudadEstado, notas: item.notas, ejecutivoId: item.ejecutivoId })
     setShowModal(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.ejecutivoId) { toast.error('Selecciona un ejecutivo asignado'); return }
     if (editing) {
       await fetch('/api/catalogos/empresas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form }) })
       toast.success('Empresa actualizada')
@@ -68,11 +81,18 @@ export default function EmpresasPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Empresas</h1>
-          <p className="page-subtitle">Catálogo de empresas con sus contactos</p>
+          <p className="page-subtitle">Catálogo de empresas con ejecutivo asignado y contactos</p>
         </div>
         <button className="btn btn-primary" onClick={openCreate}>
           <HiOutlinePlus /> Nueva Empresa
         </button>
+      </div>
+
+      <div className="filters-bar">
+        <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
+          <option value="">Todos los ejecutivos</option>
+          {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
+        </select>
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -89,6 +109,7 @@ export default function EmpresasPage() {
               <tr>
                 <th>Nombre</th>
                 <th>Ciudad / Estado</th>
+                <th>Ejecutivo</th>
                 <th>Contactos</th>
                 <th>Notas</th>
                 <th>Acciones</th>
@@ -103,6 +124,7 @@ export default function EmpresasPage() {
                     </Link>
                   </td>
                   <td>{item.ciudadEstado || '—'}</td>
+                  <td>{item.ejecutivo.nombre}</td>
                   <td><span className="badge badge-neutral">{item._count.clientes}</span></td>
                   <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.notas || '—'}</td>
                   <td>
@@ -129,9 +151,20 @@ export default function EmpresasPage() {
                 <label>Nombre comercial</label>
                 <input className="input" required value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Empresa S.A. de C.V." />
               </div>
-              <div className="form-group">
-                <label>Ciudad / Estado</label>
-                <input className="input" value={form.ciudadEstado} onChange={e => setForm({ ...form, ciudadEstado: e.target.value })} placeholder="CDMX, Monterrey, etc." />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ciudad / Estado</label>
+                  <input className="input" value={form.ciudadEstado} onChange={e => setForm({ ...form, ciudadEstado: e.target.value })} placeholder="CDMX, Monterrey, etc." />
+                </div>
+                <div className="form-group">
+                  <label>Ejecutivo asignado</label>
+                  <EntityCombobox
+                    tipo="ejecutivo"
+                    value={form.ejecutivoId}
+                    onChange={ejecutivoId => setForm({ ...form, ejecutivoId })}
+                    required
+                  />
+                </div>
               </div>
               <div className="form-group">
                 <label>Notas</label>
