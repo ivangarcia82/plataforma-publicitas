@@ -1,0 +1,17 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: expo_publicitas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: publicitas
+      POSTGRES_PASSWORD: publicitas
+      POSTGRES_DB: expo_publicitas
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
