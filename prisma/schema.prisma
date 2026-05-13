@@ -22,6 +22,7 @@ model Ejecutivo {
   citasGeneradas   CitaGenerada[]
   empresas         Empresa[]
   user             User?
+  participantesRifa ParticipanteRifa[]
 }
 
 model User {
@@ -152,4 +153,27 @@ model Review {
   rating    Int      @default(5)
   texto     String
   createdAt DateTime @default(now())
+
+  participante ParticipanteRifa?
+}
+
+model ParticipanteRifa {
+  id           String    @id @default(cuid())
+  nombre       String
+  empresa      String    @default("")
+  cargo        String    @default("")
+  email        String
+  telefono     String    @default("")
+  diaRifa      String    // "Día 1" | "Día 2" | "Día 3"
+  numeroTicket Int       // unique per día
+  ejecutivoId  String
+  ejecutivo    Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
+  rating       Int       @default(5)
+  comentario   String    @default("")
+  reviewId     String?   @unique
+  review       Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  ganoEn       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([diaRifa, numeroTicket])
 }

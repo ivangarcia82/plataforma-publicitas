@@ -8,7 +8,7 @@ import { HiOutlineBars3 } from 'react-icons/hi2'
 import { UserProvider } from '@/components/UserContext'
 
 // Routes that render as public/full-screen (no sidebar)
-const PUBLIC_ROUTES = ['/reviews', '/login']
+const PUBLIC_ROUTES = ['/reviews', '/login', '/satisfaccion', '/ruleta']
 
 const toaster = (
   <Toaster

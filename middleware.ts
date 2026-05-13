@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/me']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/me', '/satisfaccion', '/api/satisfaccion', '/api/satisfaccion/ejecutivos', '/gracias']
 const PUBLIC_PREFIXES = ['/uploads/', '/_next/', '/favicon.ico']
 
 export function middleware(req: NextRequest) {

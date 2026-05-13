@@ -11,6 +11,7 @@ import {
   HiOutlineDocumentText, HiOutlineCube, HiOutlineStar,
   HiOutlineUserGroup, HiOutlineBuildingOffice2, HiOutlineIdentification,
   HiOutlineArrowRightOnRectangle,
+  HiOutlineSparkles, HiOutlineQrCode,
 } from 'react-icons/hi2'
 import { useCurrentUser } from '@/components/UserContext'
 
@@ -36,6 +37,13 @@ const adminSections: Section[] = [
       { href: '/catalogos/ejecutivos', label: 'Ejecutivos', icon: HiOutlineUserGroup },
       { href: '/catalogos/empresas', label: 'Empresas', icon: HiOutlineBuildingOffice2 },
       { href: '/catalogos/clientes', label: 'Clientes', icon: HiOutlineIdentification },
+    ],
+  },
+  {
+    label: 'Rifa',
+    links: [
+      { href: '/admin/qr', label: 'QR Satisfacción', icon: HiOutlineQrCode },
+      { href: '/ruleta', label: 'Ruleta', icon: HiOutlineSparkles },
     ],
   },
   {
