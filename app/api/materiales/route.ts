@@ -2,13 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
+import { requireUser, requireAdmin, authErrorResponse } from '@/lib/auth'
 
 export async function GET() {
-  const data = await prisma.materialDigital.findMany({ orderBy: { createdAt: 'desc' } })
-  return NextResponse.json(data)
+  try {
+    await requireUser()
+    const data = await prisma.materialDigital.findMany({ orderBy: { createdAt: 'desc' } })
+    return NextResponse.json(data)
+  } catch (e) {
+    return authErrorResponse(e) || NextResponse.json({ error: 'Internal' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await requireAdmin()
+  } catch (e) {
+    return authErrorResponse(e) || NextResponse.json({ error: 'Internal' }, { status: 500 })
+  }
   const formData = await req.formData()
   const file = formData.get('file') as File | null
   const nombre = formData.get('nombre') as string
@@ -38,6 +49,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  try {
+    await requireAdmin()
+  } catch (e) {
+    return authErrorResponse(e) || NextResponse.json({ error: 'Internal' }, { status: 500 })
+  }
   const formData = await req.formData()
   const id = formData.get('id') as string
   const nombre = formData.get('nombre') as string
@@ -63,6 +79,11 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  try {
+    await requireAdmin()
+  } catch (e) {
+    return authErrorResponse(e) || NextResponse.json({ error: 'Internal' }, { status: 500 })
+  }
   const body = await req.json()
   const item = await prisma.materialDigital.findUnique({ where: { id: body.id } })
   if (item && item.url.startsWith('/uploads/')) {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineDocumentText, HiOutlinePhoto, HiOutlineLink, HiOutlineArrowDownTray } from 'react-icons/hi2'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Material {
   id: string
@@ -22,6 +23,8 @@ const tipoIcon = (tipo: string) => {
 }
 
 export default function MaterialesPage() {
+  const { user } = useCurrentUser()
+  const isAdmin = user?.rol === 'admin'
   const [data, setData] = useState<Material[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -77,9 +80,11 @@ export default function MaterialesPage() {
           <h1 className="page-title">Materiales Digitales</h1>
           <p className="page-subtitle">Repositorio de documentos, presentaciones y recursos del equipo</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <HiOutlinePlus /> Subir Material
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={openCreate}>
+            <HiOutlinePlus /> Subir Material
+          </button>
+        )}
       </div>
 
       <div className="filters-bar">
@@ -120,9 +125,11 @@ export default function MaterialesPage() {
                   <a href={item.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                     <HiOutlineArrowDownTray /> Descargar
                   </a>
-                  <button className="action-btn delete" onClick={() => handleDelete(item.id)}>
-                    <HiOutlineTrash />
-                  </button>
+                  {isAdmin && (
+                    <button className="action-btn delete" onClick={() => handleDelete(item.id)}>
+                      <HiOutlineTrash />
+                    </button>
+                  )}
                 </div>
               </div>
             )
