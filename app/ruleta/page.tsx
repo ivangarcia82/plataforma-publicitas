@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { HiOutlineArrowLeft, HiTrophy, HiSparkles } from 'react-icons/hi2'
+import { HiOutlineArrowLeft, HiTrophy, HiSparkles, HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
 interface Participante {
   id: string
@@ -12,20 +12,39 @@ interface Participante {
   numeroTicket: number
   diaRifa: string
   ganoEn: string | null
+  entregado: boolean
+  rechazado: boolean
   ejecutivo: { nombre: string }
 }
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3']
 
-const ITEM_HEIGHT = 100
+const SEGMENT_COLORS = [
+  '#F5821F', '#2BA9A0', '#7c3aed', '#dc2626', '#3498db', '#f59e0b',
+  '#06b6d4', '#ec4899', '#84cc16', '#8b5cf6', '#ef4444', '#0ea5e9',
+]
+
+const WHEEL_SIZE = 540 // px
+const SPIN_DURATION = 5500 // ms
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const a = ((angleDeg - 90) * Math.PI) / 180
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }
+}
+
+function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(cx, cy, r, endAngle)
+  const end = polarToCartesian(cx, cy, r, startAngle)
+  const largeArc = endAngle - startAngle <= 180 ? 0 : 1
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`
+}
 
 export default function RuletaPage() {
   const [participantes, setParticipantes] = useState<Participante[]>([])
   const [selectedDia, setSelectedDia] = useState('Día 1')
   const [spinning, setSpinning] = useState(false)
-  const [winner, setWinner] = useState<Participante | null>(null)
-  const [offset, setOffset] = useState(0)
-  const stripRef = useRef<HTMLDivElement>(null)
+  const [rotation, setRotation] = useState(0)
+  const [pendingWinner, setPendingWinner] = useState<Participante | null>(null)
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/rifa/participantes?dia=${encodeURIComponent(selectedDia)}`)
@@ -36,17 +55,19 @@ export default function RuletaPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const elegibles = participantes.filter(p => !p.ganoEn)
-  const ganadores = participantes.filter(p => p.ganoEn)
+  // Pool for the wheel: never-selected, never-delivered, never-rejected participants
+  const pool = participantes.filter(p => !p.ganoEn && !p.entregado && !p.rechazado)
+  const entregados = participantes.filter(p => p.entregado)
+  const rechazados = participantes.filter(p => p.rechazado)
+
+  const N = pool.length
+  const segmentAngle = N > 0 ? 360 / N : 0
+  const radius = WHEEL_SIZE / 2
 
   const handleSortear = async () => {
-    if (spinning) return
-    if (elegibles.length === 0) {
-      toast.error('No hay participantes elegibles para esta rifa')
-      return
-    }
+    if (spinning || pendingWinner) return
+    if (N === 0) { toast.error('No hay participantes elegibles'); return }
     setSpinning(true)
-    setWinner(null)
     const res = await fetch('/api/rifa/sortear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,35 +80,37 @@ export default function RuletaPage() {
       return
     }
     const { ganador } = await res.json()
-    const winnerIdx = elegibles.findIndex(p => p.id === ganador.id)
+    const winnerIdx = pool.findIndex(p => p.id === ganador.id)
     if (winnerIdx < 0) {
-      // fallback: refresh and stop
       await fetchData()
       setSpinning(false)
-      setWinner(ganador)
+      setPendingWinner(ganador)
       return
     }
-    // Animate strip: scroll fast and end with the winner centered
-    // Strip is rendered with elegibles repeated enough times for the animation to feel "long"
-    const loops = 6 // how many times to loop through the list
-    const finalOffset = (loops * elegibles.length + winnerIdx) * ITEM_HEIGHT
-    setOffset(0)
-    requestAnimationFrame(() => {
-      setOffset(finalOffset)
-    })
-    // After animation, set winner and refresh
+    // Compute target rotation so winner segment lands at top (12 o'clock pointer)
+    const winnerCenter = winnerIdx * segmentAngle + segmentAngle / 2
+    const baseSpins = 6 * 360
+    const target = baseSpins + (360 - winnerCenter)
+    // Add the current rotation so it always spins forward
+    setRotation(prev => prev + (target - (prev % 360)))
     setTimeout(async () => {
-      setWinner(ganador)
       setSpinning(false)
+      setPendingWinner(ganador)
       await fetchData()
-    }, 5200)
+    }, SPIN_DURATION + 200)
   }
 
-  // Repeated list for the scrolling strip animation (only includes elegibles for the spin)
-  const stripItems: Participante[] = []
-  const stripLoops = 7
-  for (let i = 0; i < stripLoops; i++) {
-    stripItems.push(...elegibles)
+  const handleConfirm = async (accepted: boolean) => {
+    if (!pendingWinner) return
+    const res = await fetch('/api/rifa/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: pendingWinner.id, accepted }),
+    })
+    if (!res.ok) { toast.error('Error al actualizar'); return }
+    toast.success(accepted ? '✅ Premio entregado' : '❌ Marcado como ausente')
+    setPendingWinner(null)
+    await fetchData()
   }
 
   return (
@@ -113,8 +136,8 @@ export default function RuletaPage() {
           {DIAS.map(d => (
             <button
               key={d}
-              onClick={() => { if (!spinning) { setSelectedDia(d); setWinner(null) } }}
-              disabled={spinning}
+              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d); setRotation(0) } }}
+              disabled={spinning || !!pendingWinner}
               style={{
                 padding: '10px 20px',
                 borderRadius: '8px',
@@ -123,8 +146,8 @@ export default function RuletaPage() {
                 color: 'white',
                 fontWeight: 600,
                 fontSize: '14px',
-                cursor: spinning ? 'not-allowed' : 'pointer',
-                opacity: spinning ? 0.5 : 1,
+                cursor: (spinning || pendingWinner) ? 'not-allowed' : 'pointer',
+                opacity: (spinning || pendingWinner) ? 0.5 : 1,
               }}
             >
               {d}
@@ -134,157 +157,245 @@ export default function RuletaPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', flex: 1, minHeight: 0 }}>
-        {/* Main: ruleta strip */}
+        {/* Wheel area */}
         <div style={{
           background: 'rgba(0,0,0,0.35)',
           borderRadius: '20px',
           padding: '32px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          alignItems: 'center',
+          gap: '20px',
           backdropFilter: 'blur(8px)',
           border: '1px solid rgba(255,255,255,0.08)',
+          overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}>
             <div>
-              <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>Participantes elegibles</div>
-              <div style={{ fontSize: '32px', fontWeight: 800 }}>{elegibles.length}</div>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>Pool elegible</div>
+              <div style={{ fontSize: '28px', fontWeight: 800 }}>{N}</div>
             </div>
             <button
               onClick={handleSortear}
-              disabled={spinning || elegibles.length === 0}
+              disabled={spinning || N === 0 || !!pendingWinner}
               style={{
-                padding: '16px 32px',
+                padding: '14px 28px',
                 borderRadius: '12px',
                 border: 'none',
-                background: spinning ? 'rgba(245,130,31,0.3)' : 'linear-gradient(135deg, #F5821F 0%, #ff9b3d 100%)',
+                background: (spinning || pendingWinner) ? 'rgba(245,130,31,0.3)' : 'linear-gradient(135deg, #F5821F 0%, #ff9b3d 100%)',
                 color: 'white',
                 fontWeight: 700,
-                fontSize: '18px',
-                cursor: spinning || elegibles.length === 0 ? 'not-allowed' : 'pointer',
-                boxShadow: spinning ? 'none' : '0 8px 24px rgba(245,130,31,0.4)',
+                fontSize: '16px',
+                cursor: (spinning || N === 0 || pendingWinner) ? 'not-allowed' : 'pointer',
+                boxShadow: (spinning || pendingWinner) ? 'none' : '0 8px 24px rgba(245,130,31,0.4)',
                 transition: 'all 0.2s',
               }}
             >
-              {spinning ? '🎲 Sorteando...' : '🎯 Sortear ahora'}
+              {spinning ? '🎲 Girando...' : pendingWinner ? '⏳ Confirma o rechaza' : '🎯 Girar ruleta'}
             </button>
           </div>
 
-          {/* Slot machine strip */}
-          <div style={{
-            position: 'relative',
-            height: `${ITEM_HEIGHT * 3}px`,
-            overflow: 'hidden',
-            borderRadius: '12px',
-            background: 'rgba(0,0,0,0.4)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}>
-            {/* Selection indicator (center band) */}
+          {/* SVG Wheel */}
+          <div style={{ position: 'relative', width: WHEEL_SIZE, height: WHEEL_SIZE }}>
+            {/* Pointer (fixed at top) */}
             <div style={{
               position: 'absolute',
-              top: `${ITEM_HEIGHT}px`,
-              left: 0,
-              right: 0,
-              height: `${ITEM_HEIGHT}px`,
-              borderTop: '2px solid #F5821F',
-              borderBottom: '2px solid #F5821F',
-              background: 'rgba(245,130,31,0.08)',
-              pointerEvents: 'none',
-              zIndex: 2,
+              top: -8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '18px solid transparent',
+              borderRight: '18px solid transparent',
+              borderTop: '32px solid #F5821F',
+              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
+              zIndex: 3,
             }} />
-            <div
-              ref={stripRef}
+            {/* Wheel SVG */}
+            <svg
+              width={WHEEL_SIZE}
+              height={WHEEL_SIZE}
+              viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
               style={{
-                transform: `translateY(-${offset}px)`,
-                transition: spinning ? 'transform 5s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+                transform: `rotate(${rotation}deg)`,
+                transition: spinning ? `transform ${SPIN_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1)` : 'none',
+                display: 'block',
               }}
             >
-              {stripItems.length === 0 ? (
-                <div style={{ height: `${ITEM_HEIGHT * 3}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: 'rgba(255,255,255,0.4)' }}>
-                  No hay participantes para {selectedDia}
-                </div>
-              ) : stripItems.map((p, i) => (
-                <div
-                  key={`${p.id}-${i}`}
-                  style={{
-                    height: `${ITEM_HEIGHT}px`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0 32px',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <div style={{
-                      fontSize: '36px',
-                      fontWeight: 800,
-                      color: '#F5821F',
-                      minWidth: '80px',
-                    }}>
-                      #{p.numeroTicket}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '22px', fontWeight: 700 }}>{p.nombre}</div>
-                      <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>{p.empresa || '—'}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{p.ejecutivo.nombre}</div>
-                </div>
-              ))}
-            </div>
+              <defs>
+                <filter id="wheelShadow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="6" result="blur" />
+                  <feOffset in="blur" dy="4" result="offsetBlur" />
+                  <feMerge>
+                    <feMergeNode in="offsetBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              {/* Background circle */}
+              <circle cx={radius} cy={radius} r={radius - 4} fill="rgba(0,0,0,0.5)" />
+
+              {N === 0 ? (
+                <text x={radius} y={radius} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.4)" fontSize="18">
+                  Sin participantes
+                </text>
+              ) : (
+                pool.map((p, i) => {
+                  const startAngle = i * segmentAngle
+                  const endAngle = (i + 1) * segmentAngle
+                  const color = SEGMENT_COLORS[i % SEGMENT_COLORS.length]
+                  const textAngle = startAngle + segmentAngle / 2
+                  const textRadius = radius * 0.6
+                  const textPos = polarToCartesian(radius, radius, textRadius, textAngle)
+                  const showName = N <= 18
+                  return (
+                    <g key={p.id}>
+                      <path d={arcPath(radius, radius, radius - 6, startAngle, endAngle)} fill={color} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+                      <g transform={`rotate(${textAngle} ${textPos.x} ${textPos.y})`}>
+                        <text
+                          x={textPos.x}
+                          y={textPos.y}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="white"
+                          fontSize={showName ? 13 : 16}
+                          fontWeight={700}
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {showName ? p.nombre.split(' ')[0] : `#${p.numeroTicket}`}
+                        </text>
+                        {showName && (
+                          <text
+                            x={textPos.x}
+                            y={textPos.y + 14}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="rgba(255,255,255,0.85)"
+                            fontSize={10}
+                            fontWeight={600}
+                            style={{ pointerEvents: 'none' }}
+                          >
+                            #{p.numeroTicket}
+                          </text>
+                        )}
+                      </g>
+                    </g>
+                  )
+                })
+              )}
+              {/* Center hub */}
+              <circle cx={radius} cy={radius} r={28} fill="white" stroke="rgba(0,0,0,0.2)" strokeWidth={2} />
+              <circle cx={radius} cy={radius} r={10} fill="#F5821F" />
+            </svg>
           </div>
 
-          {/* Winner banner */}
-          {winner && !spinning && (
+          {/* Winner card with confirmation */}
+          {pendingWinner && !spinning && (
             <div style={{
-              marginTop: '8px',
+              width: '100%',
               background: 'linear-gradient(135deg, #F5821F 0%, #ff9b3d 100%)',
               borderRadius: '16px',
-              padding: '24px 32px',
+              padding: '20px 24px',
               display: 'flex',
               alignItems: 'center',
-              gap: '20px',
+              gap: '16px',
               boxShadow: '0 12px 40px rgba(245,130,31,0.4)',
               animation: 'winnerPop 0.6s ease-out',
             }}>
-              <HiTrophy style={{ fontSize: '72px', color: 'white' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, opacity: 0.9 }}>🎉 ¡Ganador!</div>
-                <div style={{ fontSize: '36px', fontWeight: 800, marginTop: '4px' }}>{winner.nombre}</div>
-                <div style={{ fontSize: '16px', opacity: 0.9, marginTop: '2px' }}>{winner.empresa || '—'} · Ticket #{winner.numeroTicket}</div>
+              <HiTrophy style={{ fontSize: '56px', color: 'white', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, opacity: 0.9 }}>🎉 ¡Posible ganador!</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingWinner.nombre}</div>
+                <div style={{ fontSize: '14px', opacity: 0.9, marginTop: '2px' }}>{pendingWinner.empresa || '—'} · Ticket #{pendingWinner.numeroTicket}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                <button
+                  onClick={() => handleConfirm(true)}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'rgba(255,255,255,0.95)',
+                    color: '#2BA9A0',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <HiCheckCircle /> Confirmar entrega
+                </button>
+                <button
+                  onClick={() => handleConfirm(false)}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.4)',
+                    background: 'transparent',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <HiXCircle /> No está presente
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Side: ganadores del día */}
+        {/* Side: ganadores / rechazados */}
         <div style={{
           background: 'rgba(0,0,0,0.35)',
           borderRadius: '20px',
-          padding: '24px',
+          padding: '20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
+          gap: '16px',
           backdropFilter: 'blur(8px)',
           border: '1px solid rgba(255,255,255,0.08)',
           overflow: 'hidden',
         }}>
-          <div style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>Ganadores de {selectedDia}</div>
-          {ganadores.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', padding: '24px 0', textAlign: 'center' }}>Aún no hay ganadores</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
-              {ganadores.map((g, idx) => (
-                <div key={g.id} style={{ background: 'rgba(245,130,31,0.1)', border: '1px solid rgba(245,130,31,0.3)', borderRadius: '10px', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <HiTrophy style={{ color: '#F5821F' }} />
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: '#F5821F' }}>#{idx + 1}</span>
+          <div>
+            <div style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
+              Premios entregados · {entregados.length}
+            </div>
+            {entregados.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', padding: '12px 0' }}>Aún no hay ganadores confirmados</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '40vh', overflowY: 'auto' }}>
+                {entregados.map((g, idx) => (
+                  <div key={g.id} style={{ background: 'rgba(43,169,160,0.12)', border: '1px solid rgba(43,169,160,0.3)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <HiTrophy style={{ color: '#2BA9A0' }} />
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: '#2BA9A0' }}>#{idx + 1}</span>
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700 }}>{g.nombre}</div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{g.empresa || '—'} · Ticket #{g.numeroTicket}</div>
                   </div>
-                  <div style={{ fontSize: '15px', fontWeight: 700 }}>{g.nombre}</div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{g.empresa || '—'} · Ticket #{g.numeroTicket}</div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+          {rechazados.length > 0 && (
+            <div>
+              <div style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                Ausentes · {rechazados.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '20vh', overflowY: 'auto' }}>
+                {rechazados.map(r => (
+                  <div key={r.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '8px 10px', fontSize: '12px' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.7)' }}>{r.nombre}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}>Ticket #{r.numeroTicket}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -292,8 +403,8 @@ export default function RuletaPage() {
 
       <style jsx>{`
         @keyframes winnerPop {
-          0% { transform: scale(0.8); opacity: 0; }
-          60% { transform: scale(1.05); opacity: 1; }
+          0% { transform: scale(0.85); opacity: 0; }
+          60% { transform: scale(1.04); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
       `}</style>

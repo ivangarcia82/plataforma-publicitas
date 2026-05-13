@@ -173,6 +173,8 @@ model ParticipanteRifa {
   reviewId     String?   @unique
   review       Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
   ganoEn       DateTime?
+  entregado    Boolean   @default(false)
+  rechazado    Boolean   @default(false)
   createdAt    DateTime  @default(now())
 
   @@unique([diaRifa, numeroTicket])
