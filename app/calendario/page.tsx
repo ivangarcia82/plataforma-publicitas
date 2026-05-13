@@ -37,6 +37,7 @@ export default function CalendarioPage() {
   }, [])
 
   const citasDelDia = citas.filter(c => c.dia === selectedDia)
+  const citasSinHorario = citasDelDia.filter(c => !c.horario)
 
   const getCitaForHour = (hora: string) => {
     return citasDelDia.filter(c => c.horario === hora)
@@ -82,6 +83,38 @@ export default function CalendarioPage() {
       {loading ? (
         <div className="empty-state"><p>Cargando...</p></div>
       ) : (
+        <>
+        {citasSinHorario.length > 0 && (
+          <div className="glass-card" style={{ overflow: 'hidden', marginBottom: '16px' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f4', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)' }}>
+              Sin horario asignado · {citasSinHorario.length}
+            </div>
+            <div style={{ padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {citasSinHorario.map(cita => (
+                <div
+                  key={cita.id}
+                  style={{
+                    background: `${statusColor(cita.status)}10`,
+                    border: `1px solid ${statusColor(cita.status)}30`,
+                    borderLeft: `3px solid ${statusColor(cita.status)}`,
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    lineHeight: 1.4,
+                    minWidth: '180px',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {cita.cliente.nombre}
+                  </div>
+                  <div style={{ color: 'var(--color-text-secondary)' }}>
+                    {cita.cliente.empresa.nombre} · {cita.ejecutivo.nombre}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="glass-card" style={{ overflow: 'hidden' }}>
           {HORAS.map(hora => {
             const citasHora = getCitaForHour(hora)
@@ -148,6 +181,7 @@ export default function CalendarioPage() {
             )
           })}
         </div>
+        </>
       )}
     </div>
   )

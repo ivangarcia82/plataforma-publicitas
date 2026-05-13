@@ -6,6 +6,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineArrowLeft } from 'react-icons/hi2'
 import EntityCombobox from '@/components/EntityCombobox'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Cliente {
   id: string
@@ -32,6 +33,8 @@ const emptyClienteForm = { nombre: '', cargo: '', email: '', telefono: '', notas
 
 export default function EmpresaDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { user } = useCurrentUser()
+  const isEjecutivo = user?.rol === 'ejecutivo'
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -126,9 +129,11 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
           <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', fontWeight: 700, marginBottom: '4px' }}>Ejecutivo asignado</div>
           <div style={{ fontSize: '15px', fontWeight: 600 }}>{empresa.ejecutivo.nombre}</div>
         </div>
-        <button className="btn btn-secondary" onClick={openChangeEjecutivo}>
-          <HiOutlinePencil /> Cambiar
-        </button>
+        {!isEjecutivo && (
+          <button className="btn btn-secondary" onClick={openChangeEjecutivo}>
+            <HiOutlinePencil /> Cambiar
+          </button>
+        )}
       </div>
 
       {empresa.notas && (

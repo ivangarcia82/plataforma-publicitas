@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { Toaster } from 'react-hot-toast'
 import { HiOutlineBars3 } from 'react-icons/hi2'
+import { UserProvider } from '@/components/UserContext'
 
 // Routes that render as public/full-screen (no sidebar)
 const PUBLIC_ROUTES = ['/reviews', '/login']
@@ -36,18 +37,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-layout">
-      {toaster}
-      <button
-        className="mobile-menu-btn"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <HiOutlineBars3 />
-      </button>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content">
-        {children}
-      </main>
-    </div>
+    <UserProvider>
+      <div className="app-layout">
+        {toaster}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <HiOutlineBars3 />
+        </button>
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
+    </UserProvider>
   )
 }

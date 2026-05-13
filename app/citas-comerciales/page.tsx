@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineCalendar } from 'react-icons/hi2'
 import EntityCombobox from '@/components/EntityCombobox'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Ejecutivo { id: string; nombre: string }
 interface Empresa { id: string; nombre: string }
@@ -52,6 +53,8 @@ const emptyForm: FormState = {
 }
 
 export default function CitasComercialesPage() {
+  const { user } = useCurrentUser()
+  const isEjecutivo = user?.rol === 'ejecutivo'
   const [data, setData] = useState<CitaComercial[]>([])
   const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,8 +95,12 @@ export default function CitasComercialesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.ejecutivoId || !form.clienteId) {
-      toast.error('Selecciona ejecutivo y cliente')
+    if (!form.clienteId) {
+      toast.error('Selecciona cliente')
+      return
+    }
+    if (!isEjecutivo && !form.ejecutivoId) {
+      toast.error('Selecciona ejecutivo')
       return
     }
     // El backend ignora empresaId (no es columna en CitaComercial); lo dejamos solo en estado UI.
@@ -137,10 +144,12 @@ export default function CitasComercialesPage() {
           <option value="">Todos los status</option>
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
-          <option value="">Todos los ejecutivos</option>
-          {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
-        </select>
+        {!isEjecutivo && (
+          <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
+            <option value="">Todos los ejecutivos</option>
+            {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
+          </select>
+        )}
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -217,15 +226,17 @@ export default function CitasComercialesPage() {
                 </div>
               </div>
               <div className="form-row">
-                <div className="form-group">
-                  <label>Ejecutivo Responsable</label>
-                  <EntityCombobox
-                    tipo="ejecutivo"
-                    value={form.ejecutivoId}
-                    onChange={ejecutivoId => setForm({ ...form, ejecutivoId })}
-                    required
-                  />
-                </div>
+                {!isEjecutivo && (
+                  <div className="form-group">
+                    <label>Ejecutivo Responsable</label>
+                    <EntityCombobox
+                      tipo="ejecutivo"
+                      value={form.ejecutivoId}
+                      onChange={ejecutivoId => setForm({ ...form, ejecutivoId })}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Día de la Cita</label>
                   <select className="input" value={form.dia} onChange={e => setForm({ ...form, dia: e.target.value })}>

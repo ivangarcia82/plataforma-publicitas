@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineClipboardDocumentList } from 'react-icons/hi2'
 import EntityCombobox from '@/components/EntityCombobox'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Ejecutivo { id: string; nombre: string }
 interface Empresa { id: string; nombre: string }
@@ -49,6 +50,8 @@ const emptyForm = (): FormState => ({
 })
 
 export default function CitasGeneradasPage() {
+  const { user } = useCurrentUser()
+  const isEjecutivo = user?.rol === 'ejecutivo'
   const [data, setData] = useState<CitaGenerada[]>([])
   const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,8 +91,12 @@ export default function CitasGeneradasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.ejecutivoId || !form.clienteId) {
-      toast.error('Selecciona ejecutivo y cliente')
+    if (!form.clienteId) {
+      toast.error('Selecciona cliente')
+      return
+    }
+    if (!isEjecutivo && !form.ejecutivoId) {
+      toast.error('Selecciona ejecutivo')
       return
     }
     const { empresaId: _empresaId, ...payload } = form
@@ -128,10 +135,12 @@ export default function CitasGeneradasPage() {
           <option value="">Todas las acciones</option>
           {ACCION_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
-          <option value="">Todos los ejecutivos</option>
-          {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
-        </select>
+        {!isEjecutivo && (
+          <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
+            <option value="">Todos los ejecutivos</option>
+            {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
+          </select>
+        )}
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -199,10 +208,12 @@ export default function CitasGeneradasPage() {
                 </div>
               </div>
               <div className="form-row">
-                <div className="form-group">
-                  <label>Ejecutivo que Atendió</label>
-                  <EntityCombobox tipo="ejecutivo" value={form.ejecutivoId} onChange={ejecutivoId => setForm({ ...form, ejecutivoId })} required />
-                </div>
+                {!isEjecutivo && (
+                  <div className="form-group">
+                    <label>Ejecutivo que Atendió</label>
+                    <EntityCombobox tipo="ejecutivo" value={form.ejecutivoId} onChange={ejecutivoId => setForm({ ...form, ejecutivoId })} required />
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Acción</label>
                   <select className="input" value={form.accion} onChange={e => setForm({ ...form, accion: e.target.value })}>

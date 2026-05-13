@@ -1,23 +1,31 @@
 // app/api/analytics/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser, authErrorResponse } from '@/lib/auth'
 
 export async function GET() {
-  const [citas, staff, obsequios, generadas] = await Promise.all([
-    prisma.citaComercial.findMany({
-      include: {
-        ejecutivo: { select: { nombre: true } },
-        cliente: { select: { empresa: { select: { nombre: true } } } },
-      },
-    }),
-    prisma.staffMember.findMany(),
-    prisma.obsequio.findMany({
-      include: { ejecutivo: { select: { nombre: true } } },
-    }),
-    prisma.citaGenerada.findMany({
-      include: { ejecutivo: { select: { nombre: true } } },
-    }),
-  ])
+  try {
+    const user = await requireUser()
+    const ejecutivoFilter = user.rol === 'ejecutivo' ? { ejecutivoId: user.ejecutivoId! } : {}
+
+    const [citas, staff, obsequios, generadas] = await Promise.all([
+      prisma.citaComercial.findMany({
+        where: ejecutivoFilter,
+        include: {
+          ejecutivo: { select: { nombre: true } },
+          cliente: { select: { empresa: { select: { nombre: true } } } },
+        },
+      }),
+      prisma.staffMember.findMany(),
+      prisma.obsequio.findMany({
+        where: ejecutivoFilter,
+        include: { ejecutivo: { select: { nombre: true } } },
+      }),
+      prisma.citaGenerada.findMany({
+        where: ejecutivoFilter,
+        include: { ejecutivo: { select: { nombre: true } } },
+      }),
+    ])
 
   const citasPorDia: Record<string, number> = {}
   citas.forEach(c => { citasPorDia[c.dia] = (citasPorDia[c.dia] || 0) + 1 })
@@ -52,20 +60,23 @@ export async function GET() {
   const generadasPorAccion: Record<string, number> = {}
   generadas.forEach(g => { generadasPorAccion[g.accion] = (generadasPorAccion[g.accion] || 0) + 1 })
 
-  return NextResponse.json({
-    totales: {
-      citas: citas.length,
-      staff: staff.length,
-      obsequios: obsequios.length,
-      generadas: generadas.length,
-    },
-    citasPorDia,
-    citasPorStatus,
-    citasPorEjecutivo,
-    citasPorEmpresa,
-    staffPorRol,
-    viaticos: { total: viaticoTotal, pendiente: viaticoPendiente, entregado: viaticoEntregado },
-    obsequiosPorTipo,
-    generadasPorAccion,
-  })
+    return NextResponse.json({
+      totales: {
+        citas: citas.length,
+        staff: staff.length,
+        obsequios: obsequios.length,
+        generadas: generadas.length,
+      },
+      citasPorDia,
+      citasPorStatus,
+      citasPorEjecutivo,
+      citasPorEmpresa,
+      staffPorRol,
+      viaticos: { total: viaticoTotal, pendiente: viaticoPendiente, entregado: viaticoEntregado },
+      obsequiosPorTipo,
+      generadasPorAccion,
+    })
+  } catch (e) {
+    return authErrorResponse(e) || Response.json({ error: 'Internal' }, { status: 500 })
+  }
 }

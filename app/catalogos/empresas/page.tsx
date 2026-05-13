@@ -6,6 +6,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineBuildingOffice2 } from 'react-icons/hi2'
 import EntityCombobox from '@/components/EntityCombobox'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Ejecutivo { id: string; nombre: string }
 interface Empresa {
@@ -21,6 +22,8 @@ interface Empresa {
 const emptyForm = { nombre: '', ciudadEstado: '', notas: '', ejecutivoId: '' }
 
 export default function EmpresasPage() {
+  const { user } = useCurrentUser()
+  const isEjecutivo = user?.rol === 'ejecutivo'
   const [data, setData] = useState<Empresa[]>([])
   const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,7 +55,7 @@ export default function EmpresasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.ejecutivoId) { toast.error('Selecciona un ejecutivo asignado'); return }
+    if (!isEjecutivo && !form.ejecutivoId) { toast.error('Selecciona un ejecutivo asignado'); return }
     if (editing) {
       await fetch('/api/catalogos/empresas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form }) })
       toast.success('Empresa actualizada')
@@ -88,12 +91,14 @@ export default function EmpresasPage() {
         </button>
       </div>
 
-      <div className="filters-bar">
-        <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
-          <option value="">Todos los ejecutivos</option>
-          {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
-        </select>
-      </div>
+      {!isEjecutivo && (
+        <div className="filters-bar">
+          <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
+            <option value="">Todos los ejecutivos</option>
+            {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
+          </select>
+        </div>
+      )}
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
         {loading ? (
@@ -151,21 +156,28 @@ export default function EmpresasPage() {
                 <label>Nombre comercial</label>
                 <input className="input" required value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Empresa S.A. de C.V." />
               </div>
-              <div className="form-row">
+              {isEjecutivo ? (
                 <div className="form-group">
                   <label>Ciudad / Estado</label>
                   <input className="input" value={form.ciudadEstado} onChange={e => setForm({ ...form, ciudadEstado: e.target.value })} placeholder="CDMX, Monterrey, etc." />
                 </div>
-                <div className="form-group">
-                  <label>Ejecutivo asignado</label>
-                  <EntityCombobox
-                    tipo="ejecutivo"
-                    value={form.ejecutivoId}
-                    onChange={ejecutivoId => setForm({ ...form, ejecutivoId })}
-                    required
-                  />
+              ) : (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Ciudad / Estado</label>
+                    <input className="input" value={form.ciudadEstado} onChange={e => setForm({ ...form, ciudadEstado: e.target.value })} placeholder="CDMX, Monterrey, etc." />
+                  </div>
+                  <div className="form-group">
+                    <label>Ejecutivo asignado</label>
+                    <EntityCombobox
+                      tipo="ejecutivo"
+                      value={form.ejecutivoId}
+                      onChange={ejecutivoId => setForm({ ...form, ejecutivoId })}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="form-group">
                 <label>Notas</label>
                 <textarea className="input" rows={3} value={form.notas} onChange={e => setForm({ ...form, notas: e.target.value })} placeholder="Notas internas..." style={{ resize: 'vertical' }} />
