@@ -26,6 +26,8 @@ const SEGMENT_COLORS = [
 
 const WHEEL_SIZE = 540 // px
 const SPIN_DURATION = 5500 // ms
+const NUMBER_MODE_THRESHOLD = 30 // above this, switch from wheel to number-roll
+const ROLL_DURATION = 5000 // ms
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const a = ((angleDeg - 90) * Math.PI) / 180
@@ -45,6 +47,7 @@ export default function RuletaPage() {
   const [spinning, setSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [pendingWinner, setPendingWinner] = useState<Participante | null>(null)
+  const [rollingNumber, setRollingNumber] = useState<number | null>(null)
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/rifa/participantes?dia=${encodeURIComponent(selectedDia)}`)
@@ -63,6 +66,7 @@ export default function RuletaPage() {
   const N = pool.length
   const segmentAngle = N > 0 ? 360 / N : 0
   const radius = WHEEL_SIZE / 2
+  const numberMode = N > NUMBER_MODE_THRESHOLD
 
   const handleSortear = async () => {
     if (spinning || pendingWinner) return
@@ -80,6 +84,36 @@ export default function RuletaPage() {
       return
     }
     const { ganador } = await res.json()
+
+    if (numberMode) {
+      // Number-roll mode: cycle ticket numbers, decelerate, land on winner.
+      const ticketNumbers = pool.map(p => p.numeroTicket)
+      const startTime = performance.now()
+      let lastUpdate = 0
+      const animate = (now: number) => {
+        const elapsed = now - startTime
+        const progress = Math.min(elapsed / ROLL_DURATION, 1)
+        // Interval decelerates from ~40ms to ~480ms (ease-out quad)
+        const eased = 1 - Math.pow(1 - progress, 2)
+        const interval = 40 + eased * 440
+        if (now - lastUpdate >= interval) {
+          lastUpdate = now
+          const idx = Math.floor(Math.random() * ticketNumbers.length)
+          setRollingNumber(ticketNumbers[idx])
+        }
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          setRollingNumber(ganador.numeroTicket)
+          setSpinning(false)
+          setPendingWinner(ganador)
+          fetchData()
+        }
+      }
+      requestAnimationFrame(animate)
+      return
+    }
+
     const winnerIdx = pool.findIndex(p => p.id === ganador.id)
     if (winnerIdx < 0) {
       await fetchData()
@@ -136,7 +170,7 @@ export default function RuletaPage() {
           {DIAS.map(d => (
             <button
               key={d}
-              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d); setRotation(0) } }}
+              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d); setRotation(0); setRollingNumber(null) } }}
               disabled={spinning || !!pendingWinner}
               style={{
                 padding: '10px 20px',
@@ -195,7 +229,58 @@ export default function RuletaPage() {
             </button>
           </div>
 
-          {/* SVG Wheel */}
+          {/* Display: number-roll for many participants, SVG wheel for few */}
+          {numberMode ? (
+            <div style={{
+              width: WHEEL_SIZE,
+              height: WHEEL_SIZE,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at center, rgba(245,130,31,0.18) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%)',
+              border: '2px solid rgba(245,130,31,0.35)',
+              boxShadow: spinning ? '0 0 80px rgba(245,130,31,0.5), inset 0 0 60px rgba(245,130,31,0.15)' : '0 0 40px rgba(245,130,31,0.25)',
+              transition: 'box-shadow 0.4s',
+              position: 'relative',
+            }}>
+              <div style={{
+                fontSize: '13px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.28em',
+                color: 'rgba(255,255,255,0.55)',
+                fontWeight: 700,
+                marginBottom: '20px',
+              }}>
+                {spinning ? 'Sorteando…' : pendingWinner ? '🎉 Ticket ganador' : 'Ticket ganador'}
+              </div>
+              <div style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: '220px',
+                fontWeight: 900,
+                color: '#F5821F',
+                textShadow: spinning
+                  ? '0 0 80px rgba(245,130,31,0.85), 0 0 30px rgba(245,130,31,0.6)'
+                  : '0 0 50px rgba(245,130,31,0.55), 0 0 20px rgba(245,130,31,0.4)',
+                letterSpacing: '-0.04em',
+                lineHeight: 1,
+                minWidth: '380px',
+                textAlign: 'center',
+                animation: spinning ? 'pulseGlow 0.5s ease-in-out infinite alternate' : (pendingWinner ? 'winnerPop 0.6s ease-out' : 'none'),
+              }}>
+                {rollingNumber !== null ? `#${rollingNumber}` : '#---'}
+              </div>
+              <div style={{
+                fontSize: '14px',
+                color: 'rgba(255,255,255,0.45)',
+                marginTop: '24px',
+                letterSpacing: '0.05em',
+              }}>
+                {N} participantes elegibles
+              </div>
+            </div>
+          ) : (
           <div style={{ position: 'relative', width: WHEEL_SIZE, height: WHEEL_SIZE }}>
             {/* Pointer (fixed at top) */}
             <div style={{
@@ -288,6 +373,7 @@ export default function RuletaPage() {
               <circle cx={radius} cy={radius} r={10} fill="#F5821F" />
             </svg>
           </div>
+          )}
 
           {/* Winner card with confirmation */}
           {pendingWinner && !spinning && (
@@ -406,6 +492,10 @@ export default function RuletaPage() {
           0% { transform: scale(0.85); opacity: 0; }
           60% { transform: scale(1.04); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseGlow {
+          0% { transform: scale(1); filter: brightness(1); }
+          100% { transform: scale(1.03); filter: brightness(1.15); }
         }
       `}</style>
     </div>

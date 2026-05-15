@@ -235,7 +235,7 @@ select.input {
   letter-spacing: -0.02em;
 }
 .sidebar-logo p { font-size: 11px; color: var(--color-text-muted); margin: 3px 0 0; }
-.sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-nav { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
 .nav-link {
   display: flex;
   align-items: center;

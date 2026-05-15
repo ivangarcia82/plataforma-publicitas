@@ -48,26 +48,50 @@ export default function MaterialesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!file && !form.url.trim()) {
+      toast.error('Sube un archivo o ingresa una URL')
+      return
+    }
+    // Vercel serverless body limit ≈ 4.5 MB. Reject early with a clear error.
+    if (file && file.size > 4 * 1024 * 1024) {
+      toast.error(`Archivo muy grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máx 4 MB — sube a un servicio externo y pega la URL.`)
+      return
+    }
     const fd = new FormData()
     fd.append('nombre', form.nombre)
     fd.append('descripcion', form.descripcion)
     fd.append('categoria', form.categoria)
-    if (file) {
-      fd.append('file', file)
-    } else {
-      fd.append('url', form.url)
+    if (file) fd.append('file', file)
+    else fd.append('url', form.url)
+
+    const t = toast.loading('Subiendo material...')
+    try {
+      const res = await fetch('/api/materiales', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Error ${res.status}`)
+      }
+      toast.success('Material registrado', { id: t })
+      setShowModal(false)
+      fetchData()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al subir', { id: t })
     }
-    await fetch('/api/materiales', { method: 'POST', body: fd })
-    toast.success('Material registrado')
-    setShowModal(false)
-    fetchData()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este material?')) return
-    await fetch('/api/materiales', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    toast.success('Material eliminado')
-    fetchData()
+    try {
+      const res = await fetch('/api/materiales', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Error ${res.status}`)
+      }
+      toast.success('Material eliminado')
+      fetchData()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al eliminar')
+    }
   }
 
   const filtered = filterCat ? data.filter(d => d.categoria === filterCat) : data
