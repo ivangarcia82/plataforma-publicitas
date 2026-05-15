@@ -2,12 +2,15 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
+export type Rol = 'admin' | 'ejecutivo' | 'staff'
+
 export interface CurrentUser {
   id: string
   email: string
   nombre: string
-  rol: 'admin' | 'ejecutivo'
+  rol: Rol
   ejecutivoId: string | null
+  staffMemberId: string | null
 }
 
 interface UserContextValue {

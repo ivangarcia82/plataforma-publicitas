@@ -18,5 +18,6 @@ export async function POST(request: NextRequest) {
     nombre: user.nombre,
     rol: user.rol,
     ejecutivoId: user.ejecutivoId,
+    staffMemberId: user.staffMemberId,
   })
 }

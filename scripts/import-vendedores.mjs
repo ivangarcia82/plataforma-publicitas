@@ -5,7 +5,7 @@
 //   obsequios, citas generadas, rifa, reviews) and ejecutivo users.
 // - Keep admin users, MaterialDigital, InventarioObsequio, StaffMember.
 // - For each row: create Ejecutivo + User account.
-// - Password convention: "<emailUser>2026!"  (e.g. agamboa@... -> agamboa2026!)
+// - Password convention: shared default "publicitas2026" for all ejecutivos.
 // - cargo field stores: "<Cargo> · <Departamento>"  (preserves both pieces)
 
 import xlsx from 'xlsx'
@@ -31,10 +31,12 @@ async function main() {
   await prisma.ejecutivo.deleteMany({})
   console.log('  done.\n')
 
+  const DEFAULT_PASSWORD = 'publicitas2026'
+  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10)
+
   const seen = new Set()
   let created = 0
   let skipped = 0
-  const creds = []
 
   for (const r of rows) {
     const email = (r['Email profesional'] || '').toString().trim().toLowerCase()
@@ -46,38 +48,23 @@ async function main() {
     if (seen.has(email)) { skipped++; continue }
     seen.add(email)
 
-    const emailUser = email.split('@')[0]
     const cargo = departamento ? `${cargoRaw} · ${departamento}` : cargoRaw
 
     const ej = await prisma.ejecutivo.create({
       data: { nombre, email, telefono: '', cargo, activo: true },
     })
 
-    const password = `${emailUser}2026!`
-    const passwordHash = await bcrypt.hash(password, 10)
     await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        nombre,
-        rol: 'ejecutivo',
-        ejecutivoId: ej.id,
-      },
+      data: { email, passwordHash, nombre, rol: 'ejecutivo', ejecutivoId: ej.id },
     })
 
     created++
-    creds.push({ nombre, email, password })
   }
 
   console.log(`=== Import summary ===`)
   console.log(`Vendedores creados: ${created}`)
-  console.log(`Filas omitidas: ${skipped}\n`)
-
-  console.log(`=== Credenciales (CAMBIAR DESPUÉS) ===`)
-  creds.sort((a, b) => a.nombre.localeCompare(b.nombre))
-  for (const c of creds) {
-    console.log(`  ${c.email.padEnd(40)}  →  ${c.password}`)
-  }
+  console.log(`Filas omitidas: ${skipped}`)
+  console.log(`Contraseña (todos): ${DEFAULT_PASSWORD}`)
 }
 
 main()

@@ -7,12 +7,15 @@ const SESSION_COOKIE = 'plataforma_session'
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-change-in-production-please'
 
+export type Rol = 'admin' | 'ejecutivo' | 'staff'
+
 export interface SessionUser {
   id: string
   email: string
   nombre: string
-  rol: 'admin' | 'ejecutivo'
+  rol: Rol
   ejecutivoId: string | null
+  staffMemberId: string | null
 }
 
 function sign(payload: string): string {
@@ -65,9 +68,16 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     id: user.id,
     email: user.email,
     nombre: user.nombre,
-    rol: user.rol as 'admin' | 'ejecutivo',
+    rol: user.rol as Rol,
     ejecutivoId: user.ejecutivoId,
+    staffMemberId: user.staffMemberId,
   }
+}
+
+export async function requireStaff(): Promise<SessionUser> {
+  const user = await requireUser()
+  if (user.rol !== 'staff' || !user.staffMemberId) throw new AuthError('FORBIDDEN', 403)
+  return user
 }
 
 export async function requireUser(): Promise<SessionUser> {

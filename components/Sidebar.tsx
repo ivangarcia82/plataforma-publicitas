@@ -12,6 +12,7 @@ import {
   HiOutlineUserGroup, HiOutlineBuildingOffice2, HiOutlineIdentification,
   HiOutlineArrowRightOnRectangle,
   HiOutlineSparkles, HiOutlineQrCode,
+  HiOutlineBanknotes, HiOutlineUserCircle, HiOutlineCurrencyDollar,
 } from 'react-icons/hi2'
 import { useCurrentUser } from '@/components/UserContext'
 
@@ -27,6 +28,7 @@ const adminSections: Section[] = [
       { href: '/', label: 'Dashboard', icon: HiOutlineHome },
       { href: '/citas-comerciales', label: 'Visitas Comerciales', icon: HiOutlineCalendar },
       { href: '/staff', label: 'Staff Operativo', icon: HiOutlineUsers },
+      { href: '/staff/gastos', label: 'Gastos Staff', icon: HiOutlineBanknotes },
       { href: '/obsequios', label: 'Control de Obsequios', icon: HiOutlineGift },
       { href: '/citas-generadas', label: 'Citas Generadas', icon: HiOutlineClipboardDocumentList },
     ],
@@ -54,6 +56,22 @@ const adminSections: Section[] = [
       { href: '/materiales', label: 'Materiales', icon: HiOutlineDocumentText },
       { href: '/inventario', label: 'Inventario', icon: HiOutlineCube },
       { href: '/reviews', label: 'Reseñas', icon: HiOutlineStar },
+    ],
+  },
+]
+
+const staffSections: Section[] = [
+  {
+    label: 'Mi Staff',
+    links: [
+      { href: '/mi-staff', label: 'Mi Información', icon: HiOutlineUserCircle },
+      { href: '/mis-gastos', label: 'Mis Gastos', icon: HiOutlineCurrencyDollar },
+    ],
+  },
+  {
+    label: 'Recursos',
+    links: [
+      { href: '/materiales', label: 'Materiales', icon: HiOutlineDocumentText },
     ],
   },
 ]
@@ -88,7 +106,10 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const router = useRouter()
   const { user } = useCurrentUser()
 
-  const sections = user?.rol === 'ejecutivo' ? ejecutivoSections : adminSections
+  const sections =
+    user?.rol === 'ejecutivo' ? ejecutivoSections
+    : user?.rol === 'staff' ? staffSections
+    : adminSections
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })

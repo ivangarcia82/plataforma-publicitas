@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineClipboardDocumentList } from 'react-icons/hi2'
-import EntityCombobox from '@/components/EntityCombobox'
 import { useCurrentUser } from '@/components/UserContext'
 
 interface Ejecutivo { id: string; nombre: string }
@@ -12,10 +11,13 @@ interface Cliente { id: string; nombre: string; empresaId: string; empresa: Empr
 interface CitaGenerada {
   id: string
   fecha: string
-  ejecutivoId: string
-  ejecutivo: Ejecutivo
-  clienteId: string
-  cliente: Cliente
+  ejecutivoId: string | null
+  ejecutivo: Ejecutivo | null
+  clienteId: string | null
+  cliente: Cliente | null
+  empresaTexto: string
+  contactoTexto: string
+  ejecutivoTexto: string
   accion: string
   notas: string
 }
@@ -34,9 +36,9 @@ const accionBadge = (accion: string) => {
 
 interface FormState {
   fecha: string
-  ejecutivoId: string
-  empresaId: string
-  clienteId: string
+  empresaTexto: string
+  contactoTexto: string
+  ejecutivoTexto: string
   accion: string
   notas: string
 }
@@ -45,61 +47,66 @@ const todayISO = () => new Date().toISOString().split('T')[0]
 
 const emptyForm = (): FormState => ({
   fecha: todayISO(),
-  ejecutivoId: '', empresaId: '', clienteId: '',
-  accion: 'Otro', notas: '',
+  empresaTexto: '',
+  contactoTexto: '',
+  ejecutivoTexto: '',
+  accion: 'Otro',
+  notas: '',
 })
+
+// For legacy rows, show FK relation values when free-text empty
+const displayEmpresa = (c: CitaGenerada) => c.empresaTexto || c.cliente?.empresa?.nombre || '—'
+const displayContacto = (c: CitaGenerada) => c.contactoTexto || c.cliente?.nombre || '—'
+const displayEjecutivo = (c: CitaGenerada) => c.ejecutivoTexto || c.ejecutivo?.nombre || '—'
 
 export default function CitasGeneradasPage() {
   const { user } = useCurrentUser()
   const isEjecutivo = user?.rol === 'ejecutivo'
   const [data, setData] = useState<CitaGenerada[]>([])
-  const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<CitaGenerada | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [filterAccion, setFilterAccion] = useState('')
-  const [filterEjecutivo, setFilterEjecutivo] = useState('')
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams()
     if (filterAccion) params.set('accion', filterAccion)
-    if (filterEjecutivo) params.set('ejecutivoId', filterEjecutivo)
-    const [citasRes, ejecutivosRes] = await Promise.all([
-      fetch(`/api/citas-generadas?${params}`),
-      fetch('/api/catalogos/ejecutivos?activo=true'),
-    ])
-    setData(await citasRes.json())
-    setEjecutivos(await ejecutivosRes.json())
+    const res = await fetch(`/api/citas-generadas?${params}`)
+    setData(await res.json())
     setLoading(false)
-  }, [filterAccion, filterEjecutivo])
+  }, [filterAccion])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm()); setShowModal(true) }
+  const openCreate = () => {
+    setEditing(null)
+    setForm({
+      ...emptyForm(),
+      ejecutivoTexto: isEjecutivo ? (user?.nombre || '') : '',
+    })
+    setShowModal(true)
+  }
   const openEdit = (item: CitaGenerada) => {
     setEditing(item)
     setForm({
       fecha: item.fecha,
-      ejecutivoId: item.ejecutivoId,
-      empresaId: item.cliente.empresaId,
-      clienteId: item.clienteId,
-      accion: item.accion, notas: item.notas,
+      empresaTexto: displayEmpresa(item) === '—' ? '' : displayEmpresa(item),
+      contactoTexto: displayContacto(item) === '—' ? '' : displayContacto(item),
+      ejecutivoTexto: displayEjecutivo(item) === '—' ? '' : displayEjecutivo(item),
+      accion: item.accion,
+      notas: item.notas,
     })
     setShowModal(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.clienteId) {
-      toast.error('Selecciona cliente')
+    if (!form.empresaTexto.trim() && !form.contactoTexto.trim()) {
+      toast.error('Captura al menos empresa o contacto')
       return
     }
-    if (!isEjecutivo && !form.ejecutivoId) {
-      toast.error('Selecciona ejecutivo')
-      return
-    }
-    const { empresaId: _empresaId, ...payload } = form
+    const payload = form
     if (editing) {
       await fetch('/api/citas-generadas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...payload }) })
       toast.success('Cita actualizada')
@@ -135,12 +142,6 @@ export default function CitasGeneradasPage() {
           <option value="">Todas las acciones</option>
           {ACCION_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        {!isEjecutivo && (
-          <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
-            <option value="">Todos los ejecutivos</option>
-            {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
-          </select>
-        )}
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -156,7 +157,7 @@ export default function CitasGeneradasPage() {
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>Nombre</th>
+                <th>Contacto</th>
                 <th>Empresa</th>
                 <th>Ejecutivo</th>
                 <th>Acción</th>
@@ -168,9 +169,9 @@ export default function CitasGeneradasPage() {
               {data.map(item => (
                 <tr key={item.id}>
                   <td>{item.fecha}</td>
-                  <td style={{ fontWeight: 600 }}>{item.cliente.nombre}</td>
-                  <td>{item.cliente.empresa.nombre}</td>
-                  <td>{item.ejecutivo.nombre}</td>
+                  <td style={{ fontWeight: 600 }}>{displayContacto(item)}</td>
+                  <td>{displayEmpresa(item)}</td>
+                  <td>{displayEjecutivo(item)}</td>
                   <td><span className={`badge ${accionBadge(item.accion)}`}>{item.accion}</span></td>
                   <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.notas || '—'}</td>
                   <td>
@@ -200,20 +201,18 @@ export default function CitasGeneradasPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Empresa</label>
-                  <EntityCombobox tipo="empresa" value={form.empresaId} onChange={empresaId => setForm({ ...form, empresaId, clienteId: '' })} required />
+                  <input className="input" value={form.empresaTexto} onChange={e => setForm({ ...form, empresaTexto: e.target.value })} placeholder="Nombre de la empresa" />
                 </div>
                 <div className="form-group">
-                  <label>Cliente / Contacto</label>
-                  <EntityCombobox tipo="cliente" value={form.clienteId} empresaId={form.empresaId} onChange={clienteId => setForm({ ...form, clienteId })} required />
+                  <label>Contacto</label>
+                  <input className="input" value={form.contactoTexto} onChange={e => setForm({ ...form, contactoTexto: e.target.value })} placeholder="Nombre del contacto" />
                 </div>
               </div>
               <div className="form-row">
-                {!isEjecutivo && (
-                  <div className="form-group">
-                    <label>Ejecutivo que Atendió</label>
-                    <EntityCombobox tipo="ejecutivo" value={form.ejecutivoId} onChange={ejecutivoId => setForm({ ...form, ejecutivoId })} required />
-                  </div>
-                )}
+                <div className="form-group">
+                  <label>Ejecutivo que Atendió</label>
+                  <input className="input" value={form.ejecutivoTexto} onChange={e => setForm({ ...form, ejecutivoTexto: e.target.value })} placeholder="Nombre del ejecutivo" />
+                </div>
                 <div className="form-group">
                   <label>Acción</label>
                   <select className="input" value={form.accion} onChange={e => setForm({ ...form, accion: e.target.value })}>

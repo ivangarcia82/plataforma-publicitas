@@ -81,7 +81,7 @@ async function main() {
     marketingEj = await prisma.ejecutivo.create({
       data: { nombre: 'Marketing', email: marketingEmail, telefono: '', cargo: 'Marketing', activo: true },
     })
-    const passwordHash = await bcrypt.hash('marketing2026!', 10)
+    const passwordHash = await bcrypt.hash('publicitas2026', 10)
     const existingUser = await prisma.user.findUnique({ where: { email: marketingEmail } })
     if (existingUser) {
       await prisma.user.update({
@@ -93,7 +93,7 @@ async function main() {
         data: { email: marketingEmail, passwordHash, nombre: 'Marketing', rol: 'ejecutivo', ejecutivoId: marketingEj.id },
       })
     }
-    console.log(`Created Marketing ejecutivo + user (${marketingEmail} / marketing2026!)`)
+    console.log(`Created Marketing ejecutivo + user (${marketingEmail} / publicitas2026)`)
   } else {
     console.log(`Marketing ejecutivo already exists (${marketingEmail})`)
   }

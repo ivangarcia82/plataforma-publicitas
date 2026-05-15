@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { HiOutlineCalendar, HiOutlineUsers, HiOutlineGift, HiOutlineClipboardDocumentList } from 'react-icons/hi2'
 import Link from 'next/link'
+import { useCurrentUser } from '@/components/UserContext'
 
 interface Stats {
   citasComerciales: number
@@ -14,6 +16,8 @@ interface Stats {
 }
 
 export default function Dashboard() {
+  const router = useRouter()
+  const { user, loading: userLoading } = useCurrentUser()
   const [stats, setStats] = useState<Stats>({
     citasComerciales: 0,
     citasConfirmadas: 0,
@@ -25,6 +29,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!userLoading && user?.rol === 'staff') {
+      router.replace('/mi-staff')
+    }
+  }, [user, userLoading, router])
+
+  useEffect(() => {
+    if (userLoading || user?.rol === 'staff') return
     async function fetchStats() {
       try {
         const [citas, staff, obsequios, generadas] = await Promise.all([
@@ -48,7 +59,7 @@ export default function Dashboard() {
       }
     }
     fetchStats()
-  }, [])
+  }, [userLoading, user])
 
   const cards = [
     {

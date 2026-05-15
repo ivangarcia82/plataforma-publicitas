@@ -34,14 +34,18 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser()
     const body = await request.json()
-    const data = { ...body }
-    if (user.rol === 'ejecutivo') data.ejecutivoId = user.ejecutivoId!
 
-    if (user.rol === 'ejecutivo' && data.clienteId) {
-      const cli = await prisma.cliente.findUnique({ where: { id: data.clienteId }, select: { empresa: { select: { ejecutivoId: true } } } })
-      if (!cli || cli.empresa.ejecutivoId !== user.ejecutivoId) {
-        return Response.json({ error: 'Cliente no autorizado' }, { status: 403 })
-      }
+    const data: Prisma.CitaGeneradaCreateInput = {
+      fecha: body.fecha,
+      accion: body.accion || 'Otro',
+      notas: body.notas || '',
+      empresaTexto: body.empresaTexto || '',
+      contactoTexto: body.contactoTexto || '',
+      ejecutivoTexto: body.ejecutivoTexto || '',
+    }
+
+    if (user.rol === 'ejecutivo') {
+      data.ejecutivo = { connect: { id: user.ejecutivoId! } }
     }
 
     const cita = await prisma.citaGenerada.create({
@@ -58,15 +62,22 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await requireUser()
     const body = await request.json()
-    const { id, ...data } = body
+    const { id, ...rest } = body
 
     if (user.rol === 'ejecutivo') {
       const existing = await prisma.citaGenerada.findUnique({ where: { id }, select: { ejecutivoId: true } })
       if (!existing || existing.ejecutivoId !== user.ejecutivoId) {
         return Response.json({ error: 'No autorizado' }, { status: 403 })
       }
-      data.ejecutivoId = user.ejecutivoId
     }
+
+    const data: Prisma.CitaGeneradaUpdateInput = {}
+    if (rest.fecha !== undefined) data.fecha = rest.fecha
+    if (rest.accion !== undefined) data.accion = rest.accion
+    if (rest.notas !== undefined) data.notas = rest.notas
+    if (rest.empresaTexto !== undefined) data.empresaTexto = rest.empresaTexto
+    if (rest.contactoTexto !== undefined) data.contactoTexto = rest.contactoTexto
+    if (rest.ejecutivoTexto !== undefined) data.ejecutivoTexto = rest.ejecutivoTexto
 
     const cita = await prisma.citaGenerada.update({
       where: { id },
