@@ -2,11 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { requireAdmin, hashPassword, authErrorResponse } from '@/lib/auth'
 
+const DEFAULT_STAFF_PASSWORD = 'publicitas2026'
+
 function makeTempPassword(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let out = ''
-  for (let i = 0; i < 10; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]
-  return out
+  return DEFAULT_STAFF_PASSWORD
 }
 
 // POST: create or reset the user account for this staff member

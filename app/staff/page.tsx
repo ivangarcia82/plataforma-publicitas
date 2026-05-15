@@ -389,7 +389,7 @@ export default function StaffPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 12px' }}>Credenciales generadas</h2>
             <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', margin: '0 0 16px' }}>
-              Comparte esta contraseña temporal con el staff. <strong>No se mostrará otra vez.</strong>
+              Comparte estas credenciales con el staff.
             </p>
             <div className="form-group">
               <label>Email</label>
