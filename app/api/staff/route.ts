@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const activo = searchParams.get('activo')
 
     const where: Prisma.StaffMemberWhereInput = {}
-    if (dia) where.diaAsignado = dia
+    if (dia) where.diasAsignados = { has: dia }
     if (rol) where.rol = rol
     if (activo === 'true') where.activo = true
     if (activo === 'false') where.activo = false
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       data: {
         nombre: body.nombre,
         rol: body.rol || 'Staff',
-        diaAsignado: body.diaAsignado,
+        diasAsignados: Array.isArray(body.diasAsignados) ? body.diasAsignados : [],
         horarioEntrada: body.horarioEntrada,
         horarioSalida: body.horarioSalida,
         horaComida: body.horaComida || '',
@@ -63,7 +63,9 @@ export async function PUT(request: NextRequest) {
     const data: Prisma.StaffMemberUpdateInput = {}
     if (rest.nombre !== undefined) data.nombre = rest.nombre
     if (rest.rol !== undefined) data.rol = rest.rol
-    if (rest.diaAsignado !== undefined) data.diaAsignado = rest.diaAsignado
+    if (rest.diasAsignados !== undefined) {
+      data.diasAsignados = { set: Array.isArray(rest.diasAsignados) ? rest.diasAsignados : [] }
+    }
     if (rest.horarioEntrada !== undefined) data.horarioEntrada = rest.horarioEntrada
     if (rest.horarioSalida !== undefined) data.horarioSalida = rest.horarioSalida
     if (rest.horaComida !== undefined) data.horaComida = rest.horaComida

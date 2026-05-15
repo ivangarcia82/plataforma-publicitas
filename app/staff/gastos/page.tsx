@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlineBanknotes, HiOutlineCheck, HiOutlineXMark, HiOutlineArrowPath, HiOutlineArrowTopRightOnSquare, HiOutlinePencil } from 'react-icons/hi2'
 
-interface StaffMini { id: string; nombre: string; diaAsignado: string }
+interface StaffMini { id: string; nombre: string; diasAsignados: string[] }
 interface Gasto {
   id: string
   fecha: string
@@ -45,7 +45,7 @@ export default function AdminGastosStaffPage() {
     ])
     setData(await gastosRes.json())
     const staff = await staffRes.json()
-    setStaffList(staff.map((s: StaffMini) => ({ id: s.id, nombre: s.nombre, diaAsignado: s.diaAsignado })))
+    setStaffList(staff.map((s: StaffMini) => ({ id: s.id, nombre: s.nombre, diasAsignados: s.diasAsignados || [] })))
     setLoading(false)
   }, [filterStatus, filterStaff])
 
@@ -119,7 +119,7 @@ export default function AdminGastosStaffPage() {
         </select>
         <select className="input" value={filterStaff} onChange={e => setFilterStaff(e.target.value)}>
           <option value="">Todo el staff</option>
-          {staffList.map(s => <option key={s.id} value={s.id}>{s.nombre} — {s.diaAsignado}</option>)}
+          {staffList.map(s => <option key={s.id} value={s.id}>{s.nombre} — {(s.diasAsignados || []).join(', ') || 'Sin días'}</option>)}
         </select>
       </div>
 
@@ -151,7 +151,7 @@ export default function AdminGastosStaffPage() {
                   <td>{item.fecha}</td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{item.staffMember.nombre}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{item.staffMember.diaAsignado}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{(item.staffMember.diasAsignados || []).join(', ') || '—'}</div>
                   </td>
                   <td>{item.categoria}</td>
                   <td>

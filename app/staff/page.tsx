@@ -12,7 +12,7 @@ interface StaffMember {
   id: string
   nombre: string
   rol: string
-  diaAsignado: string
+  diasAsignados: string[]
   horarioEntrada: string
   horarioSalida: string
   horaComida: string
@@ -34,8 +34,12 @@ const rolBadge = (rol: string) => {
   return map[rol] || 'badge-neutral'
 }
 
-const emptyForm = {
-  nombre: '', rol: 'Staff', diaAsignado: 'Día 1', horarioEntrada: '', horarioSalida: '',
+const emptyForm: {
+  nombre: string; rol: string; diasAsignados: string[]; horarioEntrada: string; horarioSalida: string;
+  horaComida: string; seccion: string; viaticoCantidad: number; viaticoStatus: string;
+  email: string; telefono: string; activo: boolean;
+} = {
+  nombre: '', rol: 'Staff', diasAsignados: [], horarioEntrada: '', horarioSalida: '',
   horaComida: '', seccion: '', viaticoCantidad: 0, viaticoStatus: 'Pendiente',
   email: '', telefono: '', activo: true,
 }
@@ -68,7 +72,7 @@ export default function StaffPage() {
   const openEdit = (item: StaffMember) => {
     setEditing(item)
     setForm({
-      nombre: item.nombre, rol: item.rol, diaAsignado: item.diaAsignado,
+      nombre: item.nombre, rol: item.rol, diasAsignados: item.diasAsignados || [],
       horarioEntrada: item.horarioEntrada, horarioSalida: item.horarioSalida,
       horaComida: item.horaComida, seccion: item.seccion,
       viaticoCantidad: item.viaticoCantidad, viaticoStatus: item.viaticoStatus,
@@ -77,8 +81,21 @@ export default function StaffPage() {
     setShowModal(true)
   }
 
+  const toggleDia = (dia: string) => {
+    setForm(prev => ({
+      ...prev,
+      diasAsignados: prev.diasAsignados.includes(dia)
+        ? prev.diasAsignados.filter(d => d !== dia)
+        : [...prev.diasAsignados, dia],
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (form.diasAsignados.length === 0) {
+      toast.error('Selecciona al menos un día')
+      return
+    }
     const payload = { ...form, viaticoCantidad: Number(form.viaticoCantidad) }
     if (editing) {
       await fetch('/api/staff', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...payload }) })
@@ -227,7 +244,13 @@ export default function StaffPage() {
                     {!item.activo && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginLeft: '6px' }}>(inactivo)</span>}
                   </td>
                   <td><span className={`badge ${rolBadge(item.rol)}`}>{item.rol}</span></td>
-                  <td><span className="badge badge-neutral">{item.diaAsignado}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {(item.diasAsignados && item.diasAsignados.length > 0)
+                        ? item.diasAsignados.map(d => <span key={d} className="badge badge-neutral">{d}</span>)
+                        : <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>—</span>}
+                    </div>
+                  </td>
                   <td>
                     <div style={{ fontSize: '12px' }}>{item.horarioEntrada} – {item.horarioSalida}</div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Comida: {item.horaComida || '—'} · {item.seccion || '—'}</div>
@@ -301,17 +324,24 @@ export default function StaffPage() {
                   <input className="input" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} placeholder="+52 ..." />
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Día Asignado</label>
-                  <select className="input" value={form.diaAsignado} onChange={e => setForm({ ...form, diaAsignado: e.target.value })}>
-                    {DIA_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+              <div className="form-group">
+                <label>Días Asignados</label>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', padding: '8px 0' }}>
+                  {DIA_OPTIONS.map(d => (
+                    <label key={d} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input
+                        type="checkbox"
+                        checked={form.diasAsignados.includes(d)}
+                        onChange={() => toggleDia(d)}
+                      />
+                      {d}
+                    </label>
+                  ))}
                 </div>
-                <div className="form-group">
-                  <label>Sección Asignada</label>
-                  <input className="input" value={form.seccion} onChange={e => setForm({ ...form, seccion: e.target.value })} placeholder="Sección" />
-                </div>
+              </div>
+              <div className="form-group">
+                <label>Sección Asignada</label>
+                <input className="input" value={form.seccion} onChange={e => setForm({ ...form, seccion: e.target.value })} placeholder="Sección" />
               </div>
               <div className="form-row">
                 <div className="form-group">

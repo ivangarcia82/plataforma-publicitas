@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const gastos = await prisma.gastoStaff.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { staffMember: { select: { id: true, nombre: true, diaAsignado: true } } },
+      include: { staffMember: { select: { id: true, nombre: true, diasAsignados: true } } },
     })
     return Response.json(gastos)
   } catch (e) {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         comprobanteUrl: body.comprobanteUrl || '',
         notasStaff: body.notasStaff || '',
       },
-      include: { staffMember: { select: { id: true, nombre: true, diaAsignado: true } } },
+      include: { staffMember: { select: { id: true, nombre: true, diasAsignados: true } } },
     })
     return Response.json(gasto, { status: 201 })
   } catch (e) {
@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest) {
     const gasto = await prisma.gastoStaff.update({
       where: { id },
       data,
-      include: { staffMember: { select: { id: true, nombre: true, diaAsignado: true } } },
+      include: { staffMember: { select: { id: true, nombre: true, diasAsignados: true } } },
     })
     return Response.json(gasto)
   } catch (e) {

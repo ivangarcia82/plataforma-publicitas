@@ -17,7 +17,7 @@ interface StaffMember {
   id: string
   nombre: string
   rol: string
-  diaAsignado: string
+  diasAsignados: string[]
   horarioEntrada: string
   horarioSalida: string
   horaComida: string
@@ -119,8 +119,8 @@ export default function MiStaffPage() {
 
       <div className="stats-grid">
         <StatCard
-          label="Día asignado"
-          value={staff.diaAsignado}
+          label={staff.diasAsignados.length > 1 ? 'Días asignados' : 'Día asignado'}
+          value={staff.diasAsignados.length > 0 ? staff.diasAsignados.join(', ') : '—'}
           sub={`Sección: ${staff.seccion || '—'}`}
           color="#F5821F"
           Icon={HiOutlineCalendarDays}

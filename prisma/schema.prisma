@@ -88,7 +88,7 @@ model StaffMember {
   id              String   @id @default(cuid())
   nombre          String
   rol             String   @default("Staff")
-  diaAsignado     String
+  diasAsignados   String[]
   horarioEntrada  String
   horarioSalida   String
   horaComida      String   @default("")
