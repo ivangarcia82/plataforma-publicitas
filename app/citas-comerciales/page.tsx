@@ -52,10 +52,14 @@ const emptyForm: FormState = {
   dia: 'Día 1', status: 'Tentativa', horario: '', transporte: '', notas: '',
 }
 
+const PAGE_SIZE = 25
+
 export default function CitasComercialesPage() {
   const { user } = useCurrentUser()
   const isEjecutivo = user?.rol === 'ejecutivo'
   const [data, setData] = useState<CitaComercial[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [ejecutivos, setEjecutivos] = useState<Ejecutivo[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -64,22 +68,33 @@ export default function CitasComercialesPage() {
   const [filterDia, setFilterDia] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterEjecutivo, setFilterEjecutivo] = useState('')
+  const [filterEmpresa, setFilterEmpresa] = useState('')
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams()
     if (filterDia) params.set('dia', filterDia)
     if (filterStatus) params.set('status', filterStatus)
     if (filterEjecutivo) params.set('ejecutivoId', filterEjecutivo)
+    if (filterEmpresa) params.set('empresaId', filterEmpresa)
+    params.set('page', String(page))
+    params.set('pageSize', String(PAGE_SIZE))
     const [citasRes, ejecutivosRes] = await Promise.all([
       fetch(`/api/citas-comerciales?${params}`),
       fetch('/api/catalogos/ejecutivos?activo=true'),
     ])
-    setData(await citasRes.json())
+    const citasJson = await citasRes.json()
+    setData(citasJson.items ?? [])
+    setTotal(citasJson.total ?? 0)
     setEjecutivos(await ejecutivosRes.json())
     setLoading(false)
-  }, [filterDia, filterStatus, filterEjecutivo])
+  }, [filterDia, filterStatus, filterEjecutivo, filterEmpresa, page])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [filterDia, filterStatus, filterEjecutivo, filterEmpresa])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setShowModal(true) }
   const openEdit = (item: CitaComercial) => {
@@ -150,6 +165,19 @@ export default function CitasComercialesPage() {
             {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}
           </select>
         )}
+        <div style={{ minWidth: 220 }}>
+          <EntityCombobox
+            tipo="empresa"
+            value={filterEmpresa}
+            onChange={setFilterEmpresa}
+            placeholder="Todas las empresas"
+          />
+        </div>
+        {filterEmpresa && (
+          <button type="button" className="btn btn-secondary" onClick={() => setFilterEmpresa('')}>
+            Limpiar empresa
+          </button>
+        )}
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -194,6 +222,36 @@ export default function CitasComercialesPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && total > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderTop: '1px solid var(--color-border)',
+            fontSize: 13, color: 'var(--color-text-muted)', gap: 12, flexWrap: 'wrap',
+          }}>
+            <span>
+              Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de {total}
+            </span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Anterior
+              </button>
+              <span>Página {page} de {totalPages}</span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

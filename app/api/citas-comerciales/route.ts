@@ -10,10 +10,14 @@ export async function GET(request: NextRequest) {
     const dia = searchParams.get('dia')
     const status = searchParams.get('status')
     const ejecutivoIdParam = searchParams.get('ejecutivoId')
+    const empresaIdParam = searchParams.get('empresaId')
+    const pageParam = searchParams.get('page')
+    const pageSizeParam = searchParams.get('pageSize')
 
     const where: Prisma.CitaComercialWhereInput = {}
     if (dia) where.dia = dia
     if (status) where.status = status
+    if (empresaIdParam) where.cliente = { empresaId: empresaIdParam }
 
     if (user.rol === 'ejecutivo') {
       where.ejecutivoId = user.ejecutivoId!
@@ -21,13 +25,33 @@ export async function GET(request: NextRequest) {
       where.ejecutivoId = ejecutivoIdParam
     }
 
+    const include = {
+      ejecutivo: true,
+      cliente: { include: { empresa: true } },
+    } as const
+
+    // Pagination kicks in only when page/pageSize are provided. Otherwise return the full
+    // array (preserves backward compatibility with /calendario and the home dashboard).
+    if (pageParam || pageSizeParam) {
+      const page = Math.max(1, Number(pageParam) || 1)
+      const pageSize = Math.min(200, Math.max(1, Number(pageSizeParam) || 25))
+      const [items, total] = await Promise.all([
+        prisma.citaComercial.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          include,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.citaComercial.count({ where }),
+      ])
+      return Response.json({ items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) })
+    }
+
     const citas = await prisma.citaComercial.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        ejecutivo: true,
-        cliente: { include: { empresa: true } },
-      },
+      include,
     })
     return Response.json(citas)
   } catch (e) {
