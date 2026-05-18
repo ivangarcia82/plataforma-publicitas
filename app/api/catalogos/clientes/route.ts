@@ -2,7 +2,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, getAccessibleEjecutivoIds } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.ClienteWhereInput = {}
     if (empresaId) where.empresaId = empresaId
-    if (user.rol === 'ejecutivo') {
-      where.empresa = { ejecutivoId: user.ejecutivoId! }
+    const accessible = getAccessibleEjecutivoIds(user)
+    if (accessible !== null) {
+      where.empresa = { ejecutivoId: { in: accessible } }
     }
 
     const clientes = await prisma.cliente.findMany({

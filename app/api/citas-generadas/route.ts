@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, ejecutivoAccessClause } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,14 +10,10 @@ export async function GET(request: NextRequest) {
     const accion = searchParams.get('accion')
     const ejecutivoIdParam = searchParams.get('ejecutivoId')
 
-    const where: Prisma.CitaGeneradaWhereInput = {}
-    if (accion) where.accion = accion
-
-    if (user.rol === 'ejecutivo') {
-      where.ejecutivoId = user.ejecutivoId!
-    } else if (ejecutivoIdParam) {
-      where.ejecutivoId = ejecutivoIdParam
+    const where: Prisma.CitaGeneradaWhereInput = {
+      ...ejecutivoAccessClause(user, ejecutivoIdParam),
     }
+    if (accion) where.accion = accion
 
     const citas = await prisma.citaGenerada.findMany({
       where,

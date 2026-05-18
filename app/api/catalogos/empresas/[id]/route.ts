@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, getAccessibleEjecutivoIds } from '@/lib/auth'
 
 export async function GET(
   _request: Request,
@@ -18,7 +18,8 @@ export async function GET(
     if (!empresa) {
       return Response.json({ error: 'Empresa no encontrada' }, { status: 404 })
     }
-    if (user.rol === 'ejecutivo' && empresa.ejecutivoId !== user.ejecutivoId) {
+    const accessible = getAccessibleEjecutivoIds(user)
+    if (accessible !== null && !accessible.includes(empresa.ejecutivoId)) {
       return Response.json({ error: 'No autorizado' }, { status: 403 })
     }
     return Response.json(empresa)

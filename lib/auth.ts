@@ -16,6 +16,7 @@ export interface SessionUser {
   rol: Rol
   ejecutivoId: string | null
   staffMemberId: string | null
+  managedEjecutivoIds: string[]
 }
 
 function sign(payload: string): string {
@@ -71,7 +72,43 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     rol: user.rol as Rol,
     ejecutivoId: user.ejecutivoId,
     staffMemberId: user.staffMemberId,
+    managedEjecutivoIds: user.managedEjecutivoIds,
   }
+}
+
+/**
+ * IDs de ejecutivos a los que este usuario tiene acceso de lectura.
+ * - admin: `null` (sin restricción, ve todo)
+ * - ejecutivo: el suyo + los ejecutivos que tiene a cargo (managedEjecutivoIds)
+ * - otros roles: `[]` (sin acceso)
+ */
+export function getAccessibleEjecutivoIds(user: SessionUser): string[] | null {
+  if (user.rol === 'admin') return null
+  if (user.rol !== 'ejecutivo' || !user.ejecutivoId) return []
+  return [user.ejecutivoId, ...user.managedEjecutivoIds]
+}
+
+/**
+ * Construye un fragmento Prisma `where` que restringe una consulta a los ejecutivos
+ * que el usuario puede ver. Si la ruta acepta `?ejecutivoId=`, pásalo en `requested`
+ * y el filtro se intersecta con el set accesible.
+ */
+export function ejecutivoAccessClause(
+  user: SessionUser,
+  requested?: string | null
+): { ejecutivoId?: string | { in: string[] } } {
+  const accessible = getAccessibleEjecutivoIds(user)
+  if (accessible === null) {
+    return requested ? { ejecutivoId: requested } : {}
+  }
+  if (requested) {
+    return accessible.includes(requested)
+      ? { ejecutivoId: requested }
+      : { ejecutivoId: '__no_match__' }
+  }
+  if (accessible.length === 0) return { ejecutivoId: '__no_match__' }
+  if (accessible.length === 1) return { ejecutivoId: accessible[0] }
+  return { ejecutivoId: { in: accessible } }
 }
 
 export async function requireStaff(): Promise<SessionUser> {

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireUser, requireAdmin, authErrorResponse } from '@/lib/auth'
+import { requireUser, requireAdmin, authErrorResponse, getAccessibleEjecutivoIds } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,11 @@ export async function GET(request: NextRequest) {
     if (activo === 'true') where.activo = true
     if (activo === 'false') where.activo = false
 
-    // Ejecutivos only see themselves
-    if (user.rol === 'ejecutivo') where.id = user.ejecutivoId!
+    // Ejecutivos ven sólo a ellos mismos + a su equipo (si son managers)
+    const accessible = getAccessibleEjecutivoIds(user)
+    if (accessible !== null) {
+      where.id = { in: accessible }
+    }
 
     const ejecutivos = await prisma.ejecutivo.findMany({
       where,

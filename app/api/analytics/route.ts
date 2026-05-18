@@ -1,12 +1,12 @@
 // app/api/analytics/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, ejecutivoAccessClause } from '@/lib/auth'
 
 export async function GET() {
   try {
     const user = await requireUser()
-    const ejecutivoFilter = user.rol === 'ejecutivo' ? { ejecutivoId: user.ejecutivoId! } : {}
+    const ejecutivoFilter = ejecutivoAccessClause(user)
 
     const [citas, staff, obsequios, generadas] = await Promise.all([
       prisma.citaComercial.findMany({

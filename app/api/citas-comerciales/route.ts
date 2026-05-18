@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, ejecutivoAccessClause } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,16 +14,12 @@ export async function GET(request: NextRequest) {
     const pageParam = searchParams.get('page')
     const pageSizeParam = searchParams.get('pageSize')
 
-    const where: Prisma.CitaComercialWhereInput = {}
+    const where: Prisma.CitaComercialWhereInput = {
+      ...ejecutivoAccessClause(user, ejecutivoIdParam),
+    }
     if (dia) where.dia = dia
     if (status) where.status = status
     if (empresaIdParam) where.cliente = { empresaId: empresaIdParam }
-
-    if (user.rol === 'ejecutivo') {
-      where.ejecutivoId = user.ejecutivoId!
-    } else if (ejecutivoIdParam) {
-      where.ejecutivoId = ejecutivoIdParam
-    }
 
     const include = {
       ejecutivo: true,

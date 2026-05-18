@@ -159,7 +159,7 @@ export default function CitasComercialesPage() {
           <option value="">Todos los status</option>
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        {!isEjecutivo && (
+        {ejecutivos.length > 1 && (
           <select className="input" value={filterEjecutivo} onChange={e => setFilterEjecutivo(e.target.value)}>
             <option value="">Todos los ejecutivos</option>
             {ejecutivos.map(ej => <option key={ej.id} value={ej.id}>{ej.nombre}</option>)}

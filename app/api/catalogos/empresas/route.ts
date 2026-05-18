@@ -1,18 +1,15 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireUser, authErrorResponse } from '@/lib/auth'
+import { requireUser, authErrorResponse, ejecutivoAccessClause, getAccessibleEjecutivoIds } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
     const user = await requireUser()
     const ejecutivoIdParam = request.nextUrl.searchParams.get('ejecutivoId')
 
-    const where: Prisma.EmpresaWhereInput = {}
-    if (user.rol === 'ejecutivo') {
-      where.ejecutivoId = user.ejecutivoId!
-    } else if (ejecutivoIdParam) {
-      where.ejecutivoId = ejecutivoIdParam
+    const where: Prisma.EmpresaWhereInput = {
+      ...ejecutivoAccessClause(user, ejecutivoIdParam),
     }
 
     const empresas = await prisma.empresa.findMany({

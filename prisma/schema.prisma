@@ -36,6 +36,9 @@ model User {
   ejecutivo     Ejecutivo?   @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
   staffMemberId String?      @unique
   staffMember   StaffMember? @relation(fields: [staffMemberId], references: [id], onDelete: Restrict)
+  // Ejecutivos this user is a manager for and can READ data from
+  // (in addition to their own). Empty for non-managers.
+  managedEjecutivoIds String[] @default([])
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
