@@ -16,7 +16,8 @@ function todayLabel(): string {
   const offsetMs = -6 * 60 * 60 * 1000
   const localDate = new Date(now.getTime() + offsetMs)
   const iso = localDate.toISOString().slice(0, 10)
-  return EXPO_DAYS[iso] || iso
+  // Pre/post-expo (testing or leftover traffic) → defaults to "Día 1"
+  return EXPO_DAYS[iso] || 'Día 1'
 }
 
 export async function POST(request: NextRequest) {

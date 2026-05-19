@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { HiOutlineArrowLeft, HiTrophy, HiSparkles, HiCheckCircle, HiXCircle } from 'react-icons/hi2'
@@ -19,35 +19,26 @@ interface Participante {
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3']
 
-const SEGMENT_COLORS = [
-  '#F5821F', '#2BA9A0', '#7c3aed', '#dc2626', '#3498db', '#f59e0b',
-  '#06b6d4', '#ec4899', '#84cc16', '#8b5cf6', '#ef4444', '#0ea5e9',
-]
+// Slot machine config
+const DIGIT_HEIGHT = 180          // px per digit cell
+const REEL_WIDTH = 150            // px reel width
+const REEL_CYCLES = [22, 28, 34]  // full 0-9 cycles per spin (more cycles = later lock)
+const REEL_LOCK_MS = [2200, 3700, 5200]
+const COLUMN_DIGITS = 360         // enough headroom for one spin + the modulo reset trick
 
-const WHEEL_SIZE = 540 // px
-const SPIN_DURATION = 5500 // ms
-const NUMBER_MODE_THRESHOLD = 30 // above this, switch from wheel to number-roll
-const ROLL_DURATION = 5000 // ms
-
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const a = ((angleDeg - 90) * Math.PI) / 180
-  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }
-}
-
-function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
-  const start = polarToCartesian(cx, cy, r, endAngle)
-  const end = polarToCartesian(cx, cy, r, startAngle)
-  const largeArc = endAngle - startAngle <= 180 ? 0 : 1
-  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`
+function digitsOf(num: number): [number, number, number] {
+  const s = String(num).padStart(3, '0').slice(-3)
+  return [Number(s[0]), Number(s[1]), Number(s[2])]
 }
 
 export default function RuletaPage() {
   const [participantes, setParticipantes] = useState<Participante[]>([])
   const [selectedDia, setSelectedDia] = useState('Día 1')
   const [spinning, setSpinning] = useState(false)
-  const [rotation, setRotation] = useState(0)
   const [pendingWinner, setPendingWinner] = useState<Participante | null>(null)
-  const [rollingNumber, setRollingNumber] = useState<number | null>(null)
+  const [scrolled, setScrolled] = useState<[number, number, number]>([0, 0, 0])
+  const [animate, setAnimate] = useState<[boolean, boolean, boolean]>([false, false, false])
+  const [lockedReels, setLockedReels] = useState<[boolean, boolean, boolean]>([false, false, false])
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/rifa/participantes?dia=${encodeURIComponent(selectedDia)}`)
@@ -62,16 +53,14 @@ export default function RuletaPage() {
   const pool = participantes.filter(p => !p.ganoEn && !p.entregado && !p.rechazado)
   const entregados = participantes.filter(p => p.entregado)
   const rechazados = participantes.filter(p => p.rechazado)
-
   const N = pool.length
-  const segmentAngle = N > 0 ? 360 / N : 0
-  const radius = WHEEL_SIZE / 2
-  const numberMode = N > NUMBER_MODE_THRESHOLD
 
   const handleSortear = async () => {
     if (spinning || pendingWinner) return
     if (N === 0) { toast.error('No hay participantes elegibles'); return }
     setSpinning(true)
+    setLockedReels([false, false, false])
+
     const res = await fetch('/api/rifa/sortear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -84,54 +73,39 @@ export default function RuletaPage() {
       return
     }
     const { ganador } = await res.json()
+    const targets = digitsOf(ganador.numeroTicket)
 
-    if (numberMode) {
-      // Number-roll mode: cycle ticket numbers, decelerate, land on winner.
-      const ticketNumbers = pool.map(p => p.numeroTicket)
-      const startTime = performance.now()
-      let lastUpdate = 0
-      const animate = (now: number) => {
-        const elapsed = now - startTime
-        const progress = Math.min(elapsed / ROLL_DURATION, 1)
-        // Interval decelerates from ~40ms to ~480ms (ease-out quad)
-        const eased = 1 - Math.pow(1 - progress, 2)
-        const interval = 40 + eased * 440
-        if (now - lastUpdate >= interval) {
-          lastUpdate = now
-          const idx = Math.floor(Math.random() * ticketNumbers.length)
-          setRollingNumber(ticketNumbers[idx])
-        }
-        if (progress < 1) {
-          requestAnimationFrame(animate)
-        } else {
-          setRollingNumber(ganador.numeroTicket)
-          setSpinning(false)
-          setPendingWinner(ganador)
-          fetchData()
-        }
-      }
-      requestAnimationFrame(animate)
-      return
-    }
+    // Enable transitions for all 3 reels and animate to the landing positions
+    setAnimate([true, true, true])
+    setScrolled(prev => {
+      return prev.map((s, idx) => {
+        const currentDigit = s % 10
+        const delta = (targets[idx] - currentDigit + 10) % 10
+        return s + REEL_CYCLES[idx] * 10 + delta
+      }) as [number, number, number]
+    })
 
-    const winnerIdx = pool.findIndex(p => p.id === ganador.id)
-    if (winnerIdx < 0) {
-      await fetchData()
+    // Lock-flash effect per reel as each one stops
+    REEL_LOCK_MS.forEach((ms, idx) => {
+      setTimeout(() => {
+        setLockedReels(prev => {
+          const next = [...prev] as [boolean, boolean, boolean]
+          next[idx] = true
+          return next
+        })
+      }, ms)
+    })
+
+    // After the last reel locks, reveal winner + reset reels invisibly for next spin
+    setTimeout(() => {
       setSpinning(false)
       setPendingWinner(ganador)
-      return
-    }
-    // Compute target rotation so winner segment lands at top (12 o'clock pointer)
-    const winnerCenter = winnerIdx * segmentAngle + segmentAngle / 2
-    const baseSpins = 6 * 360
-    const target = baseSpins + (360 - winnerCenter)
-    // Add the current rotation so it always spins forward
-    setRotation(prev => prev + (target - (prev % 360)))
-    setTimeout(async () => {
-      setSpinning(false)
-      setPendingWinner(ganador)
-      await fetchData()
-    }, SPIN_DURATION + 200)
+      fetchData()
+      // Invisible reset: disable transitions and modulo the scroll position.
+      // The visible digit doesn't change (it's the same digit, just lower in the column).
+      setAnimate([false, false, false])
+      setScrolled(prev => prev.map(s => s % 10) as [number, number, number])
+    }, REEL_LOCK_MS[2] + 400)
   }
 
   const handleConfirm = async (accepted: boolean) => {
@@ -144,6 +118,7 @@ export default function RuletaPage() {
     if (!res.ok) { toast.error('Error al actualizar'); return }
     toast.success(accepted ? '✅ Premio entregado' : '❌ Marcado como ausente')
     setPendingWinner(null)
+    setLockedReels([false, false, false])
     await fetchData()
   }
 
@@ -170,7 +145,7 @@ export default function RuletaPage() {
           {DIAS.map(d => (
             <button
               key={d}
-              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d); setRotation(0); setRollingNumber(null) } }}
+              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d) } }}
               disabled={spinning || !!pendingWinner}
               style={{
                 padding: '10px 20px',
@@ -191,7 +166,7 @@ export default function RuletaPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', flex: 1, minHeight: 0 }}>
-        {/* Wheel area */}
+        {/* Slot machine area */}
         <div style={{
           background: 'rgba(0,0,0,0.35)',
           borderRadius: '20px',
@@ -199,7 +174,7 @@ export default function RuletaPage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '20px',
+          gap: '28px',
           backdropFilter: 'blur(8px)',
           border: '1px solid rgba(255,255,255,0.08)',
           overflow: 'hidden',
@@ -225,155 +200,61 @@ export default function RuletaPage() {
                 transition: 'all 0.2s',
               }}
             >
-              {spinning ? '🎲 Girando...' : pendingWinner ? '⏳ Confirma o rechaza' : '🎯 Girar ruleta'}
+              {spinning ? '🎰 Girando...' : pendingWinner ? '⏳ Confirma o rechaza' : '🎯 Girar'}
             </button>
           </div>
 
-          {/* Display: number-roll for many participants, SVG wheel for few */}
-          {numberMode ? (
-            <div style={{
-              width: WHEEL_SIZE,
-              height: WHEEL_SIZE,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at center, rgba(245,130,31,0.18) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%)',
-              border: '2px solid rgba(245,130,31,0.35)',
-              boxShadow: spinning ? '0 0 80px rgba(245,130,31,0.5), inset 0 0 60px rgba(245,130,31,0.15)' : '0 0 40px rgba(245,130,31,0.25)',
-              transition: 'box-shadow 0.4s',
-              position: 'relative',
-            }}>
-              <div style={{
-                fontSize: '13px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.28em',
-                color: 'rgba(255,255,255,0.55)',
-                fontWeight: 700,
-                marginBottom: '20px',
-              }}>
-                {spinning ? 'Sorteando…' : pendingWinner ? '🎉 Ticket ganador' : 'Ticket ganador'}
-              </div>
-              <div style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                fontSize: '220px',
-                fontWeight: 900,
-                color: '#F5821F',
-                textShadow: spinning
-                  ? '0 0 80px rgba(245,130,31,0.85), 0 0 30px rgba(245,130,31,0.6)'
-                  : '0 0 50px rgba(245,130,31,0.55), 0 0 20px rgba(245,130,31,0.4)',
-                letterSpacing: '-0.04em',
-                lineHeight: 1,
-                minWidth: '380px',
-                textAlign: 'center',
-                animation: spinning ? 'pulseGlow 0.5s ease-in-out infinite alternate' : (pendingWinner ? 'winnerPop 0.6s ease-out' : 'none'),
-              }}>
-                {rollingNumber !== null ? `#${rollingNumber}` : '#---'}
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: 'rgba(255,255,255,0.45)',
-                marginTop: '24px',
-                letterSpacing: '0.05em',
-              }}>
-                {N} participantes elegibles
-              </div>
-            </div>
-          ) : (
-          <div style={{ position: 'relative', width: WHEEL_SIZE, height: WHEEL_SIZE }}>
-            {/* Pointer (fixed at top) */}
-            <div style={{
-              position: 'absolute',
-              top: -8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '18px solid transparent',
-              borderRight: '18px solid transparent',
-              borderTop: '32px solid #F5821F',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
-              zIndex: 3,
-            }} />
-            {/* Wheel SVG */}
-            <svg
-              width={WHEEL_SIZE}
-              height={WHEEL_SIZE}
-              viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
-              style={{
-                transform: `rotate(${rotation}deg)`,
-                transition: spinning ? `transform ${SPIN_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1)` : 'none',
-                display: 'block',
-              }}
-            >
-              <defs>
-                <filter id="wheelShadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="6" result="blur" />
-                  <feOffset in="blur" dy="4" result="offsetBlur" />
-                  <feMerge>
-                    <feMergeNode in="offsetBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              {/* Background circle */}
-              <circle cx={radius} cy={radius} r={radius - 4} fill="rgba(0,0,0,0.5)" />
-
-              {N === 0 ? (
-                <text x={radius} y={radius} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.4)" fontSize="18">
-                  Sin participantes
-                </text>
-              ) : (
-                pool.map((p, i) => {
-                  const startAngle = i * segmentAngle
-                  const endAngle = (i + 1) * segmentAngle
-                  const color = SEGMENT_COLORS[i % SEGMENT_COLORS.length]
-                  const textAngle = startAngle + segmentAngle / 2
-                  const textRadius = radius * 0.6
-                  const textPos = polarToCartesian(radius, radius, textRadius, textAngle)
-                  const showName = N <= 18
-                  return (
-                    <g key={p.id}>
-                      <path d={arcPath(radius, radius, radius - 6, startAngle, endAngle)} fill={color} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
-                      <g transform={`rotate(${textAngle} ${textPos.x} ${textPos.y})`}>
-                        <text
-                          x={textPos.x}
-                          y={textPos.y}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fill="white"
-                          fontSize={showName ? 13 : 16}
-                          fontWeight={700}
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          {showName ? p.nombre.split(' ')[0] : `#${p.numeroTicket}`}
-                        </text>
-                        {showName && (
-                          <text
-                            x={textPos.x}
-                            y={textPos.y + 14}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fill="rgba(255,255,255,0.85)"
-                            fontSize={10}
-                            fontWeight={600}
-                            style={{ pointerEvents: 'none' }}
-                          >
-                            #{p.numeroTicket}
-                          </text>
-                        )}
-                      </g>
-                    </g>
-                  )
-                })
-              )}
-              {/* Center hub */}
-              <circle cx={radius} cy={radius} r={28} fill="white" stroke="rgba(0,0,0,0.2)" strokeWidth={2} />
-              <circle cx={radius} cy={radius} r={10} fill="#F5821F" />
-            </svg>
+          <div style={{
+            fontSize: '13px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.28em',
+            color: 'rgba(255,255,255,0.55)',
+            fontWeight: 700,
+          }}>
+            {spinning ? 'Sorteando…' : pendingWinner ? '🎉 Ticket ganador' : 'Ticket ganador'}
           </div>
-          )}
+
+          {/* Slot machine */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '28px 36px',
+            borderRadius: '24px',
+            background: 'linear-gradient(180deg, rgba(245,130,31,0.18) 0%, rgba(0,0,0,0.45) 50%, rgba(245,130,31,0.12) 100%)',
+            border: '2px solid rgba(245,130,31,0.4)',
+            boxShadow: spinning
+              ? '0 0 80px rgba(245,130,31,0.45), inset 0 0 50px rgba(0,0,0,0.5)'
+              : '0 0 30px rgba(245,130,31,0.18), inset 0 0 40px rgba(0,0,0,0.45)',
+            transition: 'box-shadow 0.4s',
+          }}>
+            <div style={{
+              fontSize: '120px',
+              fontWeight: 900,
+              color: '#F5821F',
+              textShadow: '0 0 24px rgba(245,130,31,0.55)',
+              lineHeight: 1,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              marginRight: '4px',
+            }}>#</div>
+            {[0, 1, 2].map(idx => (
+              <Reel
+                key={idx}
+                idx={idx}
+                scrolled={scrolled[idx]}
+                animate={animate[idx]}
+                locked={lockedReels[idx]}
+              />
+            ))}
+          </div>
+
+          <div style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.45)',
+            letterSpacing: '0.05em',
+          }}>
+            {N} participantes elegibles
+          </div>
 
           {/* Winner card with confirmation */}
           {pendingWinner && !spinning && (
@@ -493,11 +374,89 @@ export default function RuletaPage() {
           60% { transform: scale(1.04); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes pulseGlow {
-          0% { transform: scale(1); filter: brightness(1); }
-          100% { transform: scale(1.03); filter: brightness(1.15); }
+        @keyframes reelLockPulse {
+          0% { transform: scale(1); box-shadow: 0 0 12px rgba(245,130,31,0.25), inset 0 0 30px rgba(0,0,0,0.6); }
+          40% { transform: scale(1.06); box-shadow: 0 0 60px rgba(245,130,31,0.95), inset 0 0 30px rgba(0,0,0,0.4); }
+          100% { transform: scale(1); box-shadow: 0 0 24px rgba(245,130,31,0.5), inset 0 0 30px rgba(0,0,0,0.55); }
         }
       `}</style>
+    </div>
+  )
+}
+
+function Reel({ idx, scrolled, animate, locked }: { idx: number; scrolled: number; animate: boolean; locked: boolean }) {
+  const innerRef = useRef<HTMLDivElement>(null)
+
+  // When `animate` flips from true → false (post-spin reset), suppress the transition
+  // for one frame so the modulo-reset doesn't visibly scroll back.
+  useEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    if (!animate) {
+      el.style.transition = 'none'
+      el.style.transform = `translateY(-${scrolled * DIGIT_HEIGHT}px)`
+      // Force layout, then drop the inline override so future renders can use the prop transition
+      void el.offsetHeight
+      el.style.transition = ''
+    } else {
+      el.style.transition = ''
+      el.style.transform = `translateY(-${scrolled * DIGIT_HEIGHT}px)`
+    }
+  }, [animate, scrolled])
+
+  return (
+    <div
+      style={{
+        width: REEL_WIDTH,
+        height: DIGIT_HEIGHT,
+        overflow: 'hidden',
+        borderRadius: '14px',
+        border: '3px solid rgba(245,130,31,0.55)',
+        background: 'linear-gradient(180deg, #0a0418 0%, #1a0a2e 50%, #0a0418 100%)',
+        position: 'relative',
+        boxShadow: 'inset 0 0 30px rgba(0,0,0,0.7), 0 0 12px rgba(245,130,31,0.25)',
+        animation: locked ? 'reelLockPulse 0.45s ease-out' : 'none',
+      }}
+    >
+      <div
+        ref={innerRef}
+        style={{
+          willChange: 'transform',
+          transform: `translateY(-${scrolled * DIGIT_HEIGHT}px)`,
+          transition: animate ? `transform ${REEL_LOCK_MS[idx]}ms cubic-bezier(0.18, 0.85, 0.25, 1)` : 'none',
+        }}
+      >
+        {Array.from({ length: COLUMN_DIGITS }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              height: DIGIT_HEIGHT,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '130px',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontWeight: 900,
+              color: '#F5821F',
+              textShadow: '0 0 24px rgba(245,130,31,0.55), 0 2px 0 rgba(0,0,0,0.4)',
+              lineHeight: 1,
+            }}
+          >
+            {i % 10}
+          </div>
+        ))}
+      </div>
+      {/* Edge fade gradients for "behind glass" feel */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '40px',
+        background: 'linear-gradient(180deg, rgba(10,4,24,0.9) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px',
+        background: 'linear-gradient(0deg, rgba(10,4,24,0.9) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
     </div>
   )
 }
