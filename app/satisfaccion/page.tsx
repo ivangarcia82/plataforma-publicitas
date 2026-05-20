@@ -71,6 +71,7 @@ export default function SatisfaccionPage() {
     if (tipoCliente === 'cliente') {
       if (!form.ejecutivoId) { toast.error('Selecciona tu asesor de ventas'); return }
       if (form.gustoMas.length === 0) { toast.error('Selecciona qué te gustó más de la experiencia'); return }
+      if (!form.servicioInteres) { toast.error('Selecciona qué servicio te interesó más'); return }
     }
     if (tipoCliente === 'prospecto' && !form.servicioInteres) { toast.error('Selecciona un servicio de interés'); return }
     setLoading(true)
@@ -80,8 +81,8 @@ export default function SatisfaccionPage() {
       // Only send relevant fields per tipo
       ejecutivoId: tipoCliente === 'cliente' ? form.ejecutivoId : null,
       cargo: tipoCliente === 'cliente' ? form.cargo : '',
-      servicioInteres: tipoCliente === 'prospecto' ? form.servicioInteres : null,
-      npsScore: tipoCliente === 'prospecto' ? form.npsScore : null,
+      servicioInteres: form.servicioInteres || null, // both tipos answer this
+      npsScore: form.npsScore,                        // both tipos answer the company NPS
       gustoMas: tipoCliente === 'cliente' ? form.gustoMas : [],
       satisfaccionAsesor: tipoCliente === 'cliente' ? form.satisfaccionAsesor : null,
       npsAsesor: tipoCliente === 'cliente' ? form.npsAsesor : null,
@@ -402,6 +403,39 @@ export default function SatisfaccionPage() {
           {isCliente && (
             <>
               <div className="form-group">
+                <label>¿Qué tan probable es que recomiendes a Generando Ideas a un colega? *</label>
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {Array.from({ length: 11 }, (_, n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setForm({ ...form, npsScore: n })}
+                        style={{
+                          flex: '1 0 calc(9.09% - 4px)',
+                          minWidth: '34px',
+                          padding: '10px 0',
+                          borderRadius: '8px',
+                          border: form.npsScore === n ? `2px solid ${accent}` : '1px solid #e8e8ec',
+                          background: form.npsScore === n ? accent : 'white',
+                          color: form.npsScore === n ? 'white' : '#1a1a1a',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#9b9bab', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <span>Nada probable</span>
+                    <span>Muy probable</span>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
                 <label>¿Qué te gustó más de la experiencia? *</label>
                 <p style={{ fontSize: '11px', color: '#9b9bab', margin: '0 0 8px' }}>Puedes seleccionar más de una.</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -431,6 +465,35 @@ export default function SatisfaccionPage() {
                       >
                         <span>{selected ? '✓ ' : ''}{g.label}</span>
                         {g.sub && <span style={{ fontSize: '10px', fontWeight: 400, opacity: 0.7 }}>{g.sub}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="form-group">
+                <label>¿Qué servicio fue más interesante? *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '4px' }}>
+                  {SERVICIOS.map(s => {
+                    const selected = form.servicioInteres === s.value
+                    return (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setForm({ ...form, servicioInteres: s.value })}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: selected ? `2px solid ${accent}` : '2px solid #e8e8ec',
+                          background: selected ? '#fff7ed' : 'white',
+                          color: '#1a1a1a',
+                          fontWeight: selected ? 700 : 500,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {selected ? '● ' : '○ '}{s.label}
                       </button>
                     )
                   })}

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     npsScoreFinal = nps
   }
 
-  // Cliente-specific validation: gustoMas + advisor evaluation
+  // Cliente-specific validation: gustoMas + servicioInteres + advisor evaluation
   let gustoMasFinal: string[] = []
   let satisfaccionAsesorFinal: number | null = null
   let npsAsesorFinal: number | null = null
@@ -72,6 +72,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Selecciona al menos una opción de lo que más te gustó' }, { status: 400 })
     }
     gustoMasFinal = Array.from(new Set(cleaned))
+
+    // servicioInteres also applies to cliente (which service most interested them)
+    if (!servicioInteres || !SERVICIOS_VALIDOS.has(servicioInteres)) {
+      return Response.json({ error: 'Servicio de interés inválido' }, { status: 400 })
+    }
+    servicioInteresFinal = servicioInteres
+
+    // Company NPS for cliente too (recommend Generando Ideas to a colleague)
+    const ns = parseInt(npsScore)
+    if (Number.isNaN(ns) || ns < 0 || ns > 10) {
+      return Response.json({ error: 'NPS de la empresa debe ser 0-10' }, { status: 400 })
+    }
+    npsScoreFinal = ns
 
     const sa = parseInt(satisfaccionAsesor)
     if (Number.isNaN(sa) || sa < 1 || sa > 5) {
