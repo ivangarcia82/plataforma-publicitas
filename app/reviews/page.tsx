@@ -210,38 +210,40 @@ export default function ReviewsLivePage() {
       {/* ── New review flash overlay ── */}
       {newFlash && <div className="rv-flash" />}
 
-      {/* ── Top bar ── */}
-      <header className="rv-header">
-        <div className="rv-header-left">
-          <div className="rv-logo">
-            <span className="rv-logo-icon">★</span>
-            <div>
-              <div className="rv-logo-title">Expo Publicitas 2026</div>
-              <div className="rv-logo-sub">Reseñas en vivo</div>
+      {/* ── Top bar — only when there are reviews; hidden on welcome ── */}
+      {reviews.length > 0 && (
+        <header className="rv-header">
+          <div className="rv-header-left">
+            <div className="rv-logo">
+              <span className="rv-logo-icon">★</span>
+              <div>
+                <div className="rv-logo-title">Expo Publicitas 2026</div>
+                <div className="rv-logo-sub">Reseñas en vivo</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rv-header-stats">
-          <div className="rv-stat">
-            <div className="rv-stat-value">{loading ? '–' : reviews.length}</div>
-            <div className="rv-stat-label">
-              <span className="rv-live-dot" />
-              Reseñas
+          <div className="rv-header-stats">
+            <div className="rv-stat">
+              <div className="rv-stat-value">{reviews.length}</div>
+              <div className="rv-stat-label">
+                <span className="rv-live-dot" />
+                Reseñas
+              </div>
+            </div>
+            <div className="rv-stat-divider" />
+            <div className="rv-stat">
+              <div className="rv-stat-value">{avgRating || '–'}<span className="rv-stat-star">★</span></div>
+              <div className="rv-stat-label">Promedio</div>
+            </div>
+            <div className="rv-stat-divider" />
+            <div className="rv-stat">
+              <div className="rv-stat-value">{fiveStarPct}<span className="rv-stat-pct">%</span></div>
+              <div className="rv-stat-label">5 estrellas</div>
             </div>
           </div>
-          <div className="rv-stat-divider" />
-          <div className="rv-stat">
-            <div className="rv-stat-value">{avgRating || '–'}<span className="rv-stat-star">★</span></div>
-            <div className="rv-stat-label">Promedio</div>
-          </div>
-          <div className="rv-stat-divider" />
-          <div className="rv-stat">
-            <div className="rv-stat-value">{fiveStarPct}<span className="rv-stat-pct">%</span></div>
-            <div className="rv-stat-label">5 estrellas</div>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ── Main content ── */}
       <div className="rv-main">
