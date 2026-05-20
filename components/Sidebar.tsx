@@ -18,7 +18,7 @@ import { useCurrentUser } from '@/components/UserContext'
 
 type IconType = typeof HiOutlineCalendar
 
-interface NavLink { href: string; label: string; icon: IconType }
+interface NavLink { href: string; label: string; icon: IconType; newTab?: boolean }
 interface Section { label: string; links: NavLink[] }
 
 const adminSections: Section[] = [
@@ -45,7 +45,10 @@ const adminSections: Section[] = [
     label: 'Rifa',
     links: [
       { href: '/admin/qr', label: 'QR Satisfacción', icon: HiOutlineQrCode },
-      { href: '/ruleta', label: 'Ruleta', icon: HiOutlineSparkles },
+      { href: '/admin/participantes', label: 'Participantes', icon: HiOutlineClipboardDocumentList },
+      { href: '/admin/resenas', label: 'Reseñas', icon: HiOutlineStar },
+      { href: '/rifaPremium',  label: 'Rifa Premium',  icon: HiOutlineSparkles, newTab: true },
+      { href: '/rifaSencilla', label: 'Rifa Sencilla', icon: HiOutlineGift,     newTab: true },
     ],
   },
   {
@@ -55,7 +58,7 @@ const adminSections: Section[] = [
       { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar },
       { href: '/materiales', label: 'Materiales', icon: HiOutlineDocumentText },
       { href: '/inventario', label: 'Inventario', icon: HiOutlineCube },
-      { href: '/reviews', label: 'Reseñas', icon: HiOutlineStar },
+      { href: '/reviews', label: 'Muro de Reseñas', icon: HiOutlineStar },
     ],
   },
 ]
@@ -154,6 +157,22 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
               </div>
               {section.links.map((link) => {
                 const isActive = pathname === link.href
+                if (link.newTab) {
+                  return (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="nav-link"
+                      onClick={onClose}
+                    >
+                      <span className="icon"><link.icon /></span>
+                      {link.label}
+                      <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-muted)' }}>↗</span>
+                    </a>
+                  )
+                }
                 return (
                   <Link
                     key={link.href}
