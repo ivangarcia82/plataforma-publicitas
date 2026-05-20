@@ -145,7 +145,6 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
           <h1 style={{ fontSize: '32px', fontWeight: 800, margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: '10px', color: '#1a1a1a' }}>
             <p.Icon style={{ color: p.accent }} /> {p.title}
           </h1>
-          <p style={{ fontSize: '13px', color: '#6b6b7b', margin: '4px 0 0' }}>{p.sub}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           {DIAS.map(d => (
