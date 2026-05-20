@@ -20,16 +20,71 @@ function todayLabel(): string {
   return EXPO_DAYS[iso] || 'Día 1'
 }
 
+const SERVICIOS_VALIDOS = new Set(['digital_evolution', 'promotional_workshop', 'print_shop'])
+const GUSTO_VALIDOS = new Set(['beneficios', 'zona_vip', 'tematica', 'obsequios', 'todo'])
+
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { nombre, empresa, cargo, email, telefono, ejecutivoId, rating, comentario } = body
+  const {
+    nombre, empresa, cargo, email, telefono, ejecutivoId, rating, comentario,
+    tipoCliente, servicioInteres, npsScore,
+    gustoMas, satisfaccionAsesor, npsAsesor,
+  } = body
 
-  if (!nombre || !email || !ejecutivoId) {
-    return Response.json({ error: 'Nombre, email y ejecutivo son requeridos' }, { status: 400 })
+  if (!nombre || !email) {
+    return Response.json({ error: 'Nombre y email son requeridos' }, { status: 400 })
   }
 
-  const ej = await prisma.ejecutivo.findUnique({ where: { id: ejecutivoId } })
-  if (!ej) return Response.json({ error: 'Ejecutivo no válido' }, { status: 400 })
+  const tipo = tipoCliente === 'prospecto' ? 'prospecto' : 'cliente'
+
+  // Cliente requires asesor; prospecto no.
+  if (tipo === 'cliente' && !ejecutivoId) {
+    return Response.json({ error: 'Cliente debe indicar su asesor de ventas' }, { status: 400 })
+  }
+  if (ejecutivoId) {
+    const ej = await prisma.ejecutivo.findUnique({ where: { id: ejecutivoId } })
+    if (!ej) return Response.json({ error: 'Asesor no válido' }, { status: 400 })
+  }
+
+  // Prospecto-specific validation
+  let servicioInteresFinal: string | null = null
+  let npsScoreFinal: number | null = null
+  if (tipo === 'prospecto') {
+    if (!servicioInteres || !SERVICIOS_VALIDOS.has(servicioInteres)) {
+      return Response.json({ error: 'Servicio de interés inválido' }, { status: 400 })
+    }
+    const nps = parseInt(npsScore)
+    if (Number.isNaN(nps) || nps < 0 || nps > 10) {
+      return Response.json({ error: 'NPS debe estar entre 0 y 10' }, { status: 400 })
+    }
+    servicioInteresFinal = servicioInteres
+    npsScoreFinal = nps
+  }
+
+  // Cliente-specific validation: gustoMas + advisor evaluation
+  let gustoMasFinal: string[] = []
+  let satisfaccionAsesorFinal: number | null = null
+  let npsAsesorFinal: number | null = null
+  if (tipo === 'cliente') {
+    const arr = Array.isArray(gustoMas) ? gustoMas : []
+    const cleaned = arr.filter((v: unknown) => typeof v === 'string' && GUSTO_VALIDOS.has(v))
+    if (cleaned.length === 0) {
+      return Response.json({ error: 'Selecciona al menos una opción de lo que más te gustó' }, { status: 400 })
+    }
+    gustoMasFinal = Array.from(new Set(cleaned))
+
+    const sa = parseInt(satisfaccionAsesor)
+    if (Number.isNaN(sa) || sa < 1 || sa > 5) {
+      return Response.json({ error: 'Satisfacción con el asesor debe ser 1-5' }, { status: 400 })
+    }
+    satisfaccionAsesorFinal = sa
+
+    const na = parseInt(npsAsesor)
+    if (Number.isNaN(na) || na < 0 || na > 10) {
+      return Response.json({ error: 'NPS del asesor debe ser 0-10' }, { status: 400 })
+    }
+    npsAsesorFinal = na
+  }
 
   const diaRifa = todayLabel()
   const ratingNum = Math.min(5, Math.max(1, parseInt(rating) || 5))
@@ -67,10 +122,16 @@ export async function POST(request: NextRequest) {
       telefono: telefono || '',
       diaRifa,
       numeroTicket,
-      ejecutivoId,
+      ejecutivoId: ejecutivoId || null,
       rating: ratingNum,
       comentario: comentarioStr,
       reviewId,
+      tipoCliente: tipo,
+      servicioInteres: servicioInteresFinal,
+      npsScore: npsScoreFinal,
+      gustoMas: gustoMasFinal,
+      satisfaccionAsesor: satisfaccionAsesorFinal,
+      npsAsesor: npsAsesorFinal,
     },
   })
 
@@ -78,5 +139,6 @@ export async function POST(request: NextRequest) {
     success: true,
     numeroTicket: participante.numeroTicket,
     diaRifa: participante.diaRifa,
+    tipoCliente: participante.tipoCliente,
   })
 }

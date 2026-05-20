@@ -189,24 +189,40 @@ model Review {
 }
 
 model ParticipanteRifa {
-  id           String    @id @default(cuid())
+  id           String     @id @default(cuid())
   nombre       String
-  empresa      String    @default("")
-  cargo        String    @default("")
+  empresa      String     @default("")
+  cargo        String     @default("")
   email        String
-  telefono     String    @default("")
-  diaRifa      String    // "Día 1" | "Día 2" | "Día 3"
-  numeroTicket Int       // unique per día
-  ejecutivoId  String
-  ejecutivo    Ejecutivo @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
-  rating       Int       @default(5)
-  comentario   String    @default("")
-  reviewId     String?   @unique
-  review       Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
-  ganoEn       DateTime?
-  entregado    Boolean   @default(false)
-  rechazado    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
+  telefono     String     @default("")
+  diaRifa      String     // "Día 1" | "Día 2" | "Día 3"
+  numeroTicket Int        // unique per día
+  ejecutivoId  String?
+  ejecutivo    Ejecutivo? @relation(fields: [ejecutivoId], references: [id], onDelete: Restrict)
+  rating       Int        @default(5)
+  comentario   String     @default("")
+  reviewId     String?    @unique
+  review       Review?    @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  // tipoCliente: "cliente" → entra a premium + sencilla; "prospecto" → solo sencilla
+  tipoCliente     String  @default("cliente")
+  // Prospect-only fields
+  servicioInteres String? // "digital_evolution" | "promotional_workshop" | "print_shop"
+  npsScore        Int?    // 0-10 — recomendación a un colega (prospecto)
+  // Cliente-only fields — what they liked + advisor evaluation
+  gustoMas            String[] @default([]) // subset of: "beneficios" | "zona_vip" | "tematica" | "obsequios" | "todo"
+  satisfaccionAsesor  Int?     // 1-5 — atención del asesor
+  npsAsesor           Int?     // 0-10 — recomendación del asesor
+
+  // Per-raffle outcome tracking — a cliente puede ganar premium y sencilla independientemente
+  ganoEnPremium    DateTime?
+  entregadoPremium Boolean   @default(false)
+  rechazadoPremium Boolean   @default(false)
+  ganoEnSencilla    DateTime?
+  entregadoSencilla Boolean   @default(false)
+  rechazadoSencilla Boolean   @default(false)
+
+  createdAt    DateTime   @default(now())
 
   @@unique([diaRifa, numeroTicket])
 }

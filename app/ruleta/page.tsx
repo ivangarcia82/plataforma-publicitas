@@ -18,6 +18,10 @@ interface Participante {
 }
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3']
+const TIPOS: { value: 'premium' | 'sencilla'; label: string; sub: string; color: string }[] = [
+  { value: 'premium',  label: '✨ Premium',  sub: 'Solo clientes',           color: '#F5821F' },
+  { value: 'sencilla', label: '🎁 Sencilla', sub: 'Clientes y prospectos',   color: '#2BA9A0' },
+]
 
 // Slot machine config
 const DIGIT_HEIGHT = 180          // px per digit cell
@@ -34,6 +38,7 @@ function digitsOf(num: number): [number, number, number] {
 export default function RuletaPage() {
   const [participantes, setParticipantes] = useState<Participante[]>([])
   const [selectedDia, setSelectedDia] = useState('Día 1')
+  const [selectedTipo, setSelectedTipo] = useState<'premium' | 'sencilla'>('premium')
   const [spinning, setSpinning] = useState(false)
   const [pendingWinner, setPendingWinner] = useState<Participante | null>(null)
   const [scrolled, setScrolled] = useState<[number, number, number]>([0, 0, 0])
@@ -41,11 +46,11 @@ export default function RuletaPage() {
   const [lockedReels, setLockedReels] = useState<[boolean, boolean, boolean]>([false, false, false])
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/rifa/participantes?dia=${encodeURIComponent(selectedDia)}`)
+    const res = await fetch(`/api/rifa/participantes?dia=${encodeURIComponent(selectedDia)}&tipo=${selectedTipo}`)
     if (!res.ok) return
     const data = await res.json()
     setParticipantes(data)
-  }, [selectedDia])
+  }, [selectedDia, selectedTipo])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -64,7 +69,7 @@ export default function RuletaPage() {
     const res = await fetch('/api/rifa/sortear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dia: selectedDia }),
+      body: JSON.stringify({ dia: selectedDia, tipo: selectedTipo }),
     })
     if (!res.ok) {
       setSpinning(false)
@@ -113,7 +118,7 @@ export default function RuletaPage() {
     const res = await fetch('/api/rifa/confirmar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: pendingWinner.id, accepted }),
+      body: JSON.stringify({ id: pendingWinner.id, accepted, tipo: selectedTipo }),
     })
     if (!res.ok) { toast.error('Error al actualizar'); return }
     toast.success(accepted ? '✅ Premio entregado' : '❌ Marcado como ausente')
@@ -141,27 +146,61 @@ export default function RuletaPage() {
             <HiSparkles style={{ color: '#F5821F' }} /> Rifa Expo Publicitas
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {DIAS.map(d => (
-            <button
-              key={d}
-              onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d) } }}
-              disabled={spinning || !!pendingWinner}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: selectedDia === d ? '#F5821F' : 'rgba(255,255,255,0.05)',
-                color: 'white',
-                fontWeight: 600,
-                fontSize: '14px',
-                cursor: (spinning || pendingWinner) ? 'not-allowed' : 'pointer',
-                opacity: (spinning || pendingWinner) ? 0.5 : 1,
-              }}
-            >
-              {d}
-            </button>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {TIPOS.map(t => {
+              const active = selectedTipo === t.value
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => { if (!spinning && !pendingWinner) { setSelectedTipo(t.value) } }}
+                  disabled={spinning || !!pendingWinner}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    border: active ? `2px solid ${t.color}` : '1px solid rgba(255,255,255,0.2)',
+                    background: active ? t.color : 'rgba(255,255,255,0.05)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: (spinning || pendingWinner) ? 'not-allowed' : 'pointer',
+                    opacity: (spinning || pendingWinner) ? 0.5 : 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    lineHeight: 1.1,
+                    boxShadow: active ? `0 6px 18px ${t.color}55` : 'none',
+                  }}
+                  title={t.sub}
+                >
+                  <span>{t.label}</span>
+                  <span style={{ fontSize: '10px', fontWeight: 500, opacity: 0.85 }}>{t.sub}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {DIAS.map(d => (
+              <button
+                key={d}
+                onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d) } }}
+                disabled={spinning || !!pendingWinner}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: selectedDia === d ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.05)',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: (spinning || pendingWinner) ? 'not-allowed' : 'pointer',
+                  opacity: (spinning || pendingWinner) ? 0.5 : 1,
+                }}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
