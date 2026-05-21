@@ -77,7 +77,6 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
 
   const pool = participantes.filter(x => !x.ganoEn && !x.entregado && !x.rechazado)
   const entregados = participantes.filter(x => x.entregado)
-  const rechazados = participantes.filter(x => x.rechazado)
   const N = pool.length
 
   const handleSortear = async () => {
@@ -340,16 +339,13 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
           )}
         </div>
 
-        {/* Side: ganadores / ausentes */}
+        {/* Side: ganadores */}
         <div style={{
           background: 'white',
           borderRadius: '16px',
           padding: isPortrait ? '24px' : '20px',
-          display: (isPortrait && rechazados.length > 0) ? 'grid' : 'flex',
-          ...((isPortrait && rechazados.length > 0)
-            ? { gridTemplateColumns: '1fr 1fr' }
-            : { flexDirection: 'column' as const }
-          ),
+          display: 'flex',
+          flexDirection: 'column',
           gap: isPortrait ? '24px' : '16px',
           border: '1px solid #f0f0f4',
           boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
@@ -376,21 +372,6 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
               </div>
             )}
           </div>
-          {rechazados.length > 0 && (
-            <div>
-              <div style={{ fontSize: isPortrait ? '14px' : '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#9b9bab', marginBottom: '8px' }}>
-                Ausentes · {rechazados.length}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: isPortrait ? '50vh' : '20vh', overflowY: 'auto' }}>
-                {rechazados.map(r => (
-                  <div key={r.id} style={{ background: '#fafafa', border: '1px solid #f0f0f4', borderRadius: '8px', padding: isPortrait ? '12px 14px' : '8px 10px', fontSize: isPortrait ? '14px' : '12px' }}>
-                    <div style={{ color: '#1a1a1a' }}>{r.nombre}</div>
-                    <div style={{ color: '#9b9bab', fontSize: isPortrait ? '12px' : '10px' }}>Ticket #{r.numeroTicket}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
