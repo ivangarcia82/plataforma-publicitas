@@ -72,6 +72,7 @@ export default function SatisfaccionPage() {
       if (!form.ejecutivoId) { toast.error('Selecciona tu asesor de ventas'); return }
       if (form.gustoMas.length === 0) { toast.error('Selecciona qué te gustó más de la experiencia'); return }
       if (!form.servicioInteres) { toast.error('Selecciona qué servicio te interesó más'); return }
+      if (!form.comentario.trim()) { toast.error('Comparte tu experiencia para enviar el formulario'); return }
     }
     if (tipoCliente === 'prospecto' && !form.servicioInteres) { toast.error('Selecciona un servicio de interés'); return }
     setLoading(true)
@@ -638,13 +639,14 @@ export default function SatisfaccionPage() {
           )}
           {isCliente && (
             <div className="form-group">
-              <label>Compártenos tu experiencia (opcional)</label>
+              <label>Compártenos tu experiencia <span style={{ color: '#F5821F' }}>*</span></label>
               <textarea
                 className="input"
                 rows={3}
                 value={form.comentario}
                 onChange={e => setForm({ ...form, comentario: e.target.value })}
                 placeholder="Tu comentario aparecerá en nuestras reseñas..."
+                required
                 style={{ resize: 'vertical' }}
               />
             </div>

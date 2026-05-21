@@ -103,6 +103,10 @@ export async function POST(request: NextRequest) {
   const ratingNum = Math.min(5, Math.max(1, parseInt(rating) || 5))
   const comentarioStr = (comentario || '').toString().trim()
 
+  if (tipo === 'cliente' && comentarioStr.length === 0) {
+    return Response.json({ error: 'El comentario es obligatorio' }, { status: 400 })
+  }
+
   // Compute next ticket number for this día (concurrent-safe-ish; for a small expo this is fine)
   const lastTicket = await prisma.participanteRifa.findFirst({
     where: { diaRifa },
