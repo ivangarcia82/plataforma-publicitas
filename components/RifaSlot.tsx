@@ -24,15 +24,29 @@ type Tipo = 'premium' | 'sencilla'
 const DIAS = ['Día 1', 'Día 2', 'Día 3']
 
 // Slot machine config
-const DIGIT_HEIGHT = 180
-const REEL_WIDTH = 150
 const REEL_CYCLES = [22, 28, 34]
 const REEL_LOCK_MS = [2200, 3700, 5200]
 const COLUMN_DIGITS = 360
 
+const REEL_DIMS_LANDSCAPE = { width: 150, height: 180, fontSize: 130 }
+const REEL_DIMS_PORTRAIT = { width: 200, height: 240, fontSize: 170 }
+
 function digitsOf(num: number): [number, number, number] {
   const s = String(num).padStart(3, '0').slice(-3)
   return [Number(s[0]), Number(s[1]), Number(s[2])]
+}
+
+function useIsPortrait() {
+  const [isPortrait, setIsPortrait] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(orientation: portrait)')
+    const update = () => setIsPortrait(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return isPortrait
 }
 
 const PALETTES: Record<Tipo, { accent: string; accentSoft: string; title: string; sub: string; Icon: typeof HiSparkles }> = {
@@ -42,6 +56,8 @@ const PALETTES: Record<Tipo, { accent: string; accentSoft: string; title: string
 
 export default function RifaSlot({ tipo }: { tipo: Tipo }) {
   const p = PALETTES[tipo]
+  const isPortrait = useIsPortrait()
+  const reelDims = isPortrait ? REEL_DIMS_PORTRAIT : REEL_DIMS_LANDSCAPE
   const [participantes, setParticipantes] = useState<Participante[]>([])
   const [selectedDia, setSelectedDia] = useState('Día 1')
   const [spinning, setSpinning] = useState(false)
@@ -131,35 +147,43 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
       minHeight: '100vh',
       background: '#fafafa',
       color: '#1a1a1a',
-      padding: '24px',
+      padding: isPortrait ? '32px' : '24px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '20px',
+      gap: isPortrait ? '28px' : '20px',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isPortrait ? 'column' : 'row',
+        alignItems: isPortrait ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: isPortrait ? '20px' : '12px',
+      }}>
         <div>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#6b6b7b', textDecoration: 'none', fontSize: '13px' }}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#6b6b7b', textDecoration: 'none', fontSize: isPortrait ? '15px' : '13px' }}>
             <HiOutlineArrowLeft /> Volver al admin
           </Link>
-          <h1 style={{ fontSize: '32px', fontWeight: 800, margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: '10px', color: '#1a1a1a' }}>
+          <h1 style={{ fontSize: isPortrait ? '44px' : '32px', fontWeight: 800, margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: '10px', color: '#1a1a1a' }}>
             <p.Icon style={{ color: p.accent }} /> {p.title}
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: isPortrait ? '12px' : '8px', width: isPortrait ? '100%' : 'auto' }}>
           {DIAS.map(d => (
             <button
               key={d}
               onClick={() => { if (!spinning && !pendingWinner) { setSelectedDia(d) } }}
               disabled={spinning || !!pendingWinner}
               style={{
-                padding: '10px 18px',
+                flex: isPortrait ? 1 : undefined,
+                padding: isPortrait ? '18px 24px' : '10px 18px',
                 borderRadius: '8px',
                 border: selectedDia === d ? `2px solid ${p.accent}` : '1px solid #e5e7eb',
                 background: selectedDia === d ? p.accent : 'white',
                 color: selectedDia === d ? 'white' : '#1a1a1a',
                 fontWeight: 700,
-                fontSize: '14px',
+                fontSize: isPortrait ? '18px' : '14px',
                 cursor: (spinning || pendingWinner) ? 'not-allowed' : 'pointer',
                 opacity: (spinning || pendingWinner) ? 0.5 : 1,
                 transition: 'all 0.12s',
@@ -171,36 +195,39 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px', flex: 1, minHeight: 0 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isPortrait ? '1fr' : '1fr 320px',
+        gap: isPortrait ? '24px' : '20px',
+        flex: 1,
+        minHeight: 0,
+      }}>
         {/* Slot machine area */}
         <div style={{
           background: 'white',
           borderRadius: '16px',
-          padding: '28px',
+          padding: isPortrait ? '40px 28px' : '28px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '24px',
+          gap: isPortrait ? '32px' : '24px',
           border: '1px solid #f0f0f4',
           boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
           overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%' }}>
-            <div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9b9bab', fontWeight: 700 }}>Pool elegible</div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: '#1a1a1a' }}>{N}</div>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', width: '100%' }}>
+
             <button
               onClick={handleSortear}
               disabled={spinning || N === 0 || !!pendingWinner}
               style={{
-                padding: '14px 28px',
+                padding: isPortrait ? '20px 44px' : '14px 28px',
                 borderRadius: '10px',
                 border: 'none',
                 background: (spinning || pendingWinner) ? '#fbe6d0' : p.accent,
                 color: 'white',
                 fontWeight: 700,
-                fontSize: '15px',
+                fontSize: isPortrait ? '20px' : '15px',
                 cursor: (spinning || N === 0 || pendingWinner) ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s',
               }}
@@ -210,7 +237,7 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
           </div>
 
           <div style={{
-            fontSize: '12px',
+            fontSize: isPortrait ? '15px' : '12px',
             textTransform: 'uppercase',
             letterSpacing: '0.28em',
             color: '#9b9bab',
@@ -223,14 +250,14 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '14px',
-            padding: '24px 32px',
+            gap: isPortrait ? '18px' : '14px',
+            padding: isPortrait ? '32px 40px' : '24px 32px',
             borderRadius: '20px',
             background: '#fafafa',
             border: `2px solid ${p.accent}`,
           }}>
             <div style={{
-              fontSize: '120px',
+              fontSize: isPortrait ? `${Math.round(reelDims.fontSize * 0.85)}px` : '120px',
               fontWeight: 900,
               color: p.accent,
               lineHeight: 1,
@@ -245,13 +272,13 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
                 animate={animate[idx]}
                 locked={lockedReels[idx]}
                 accent={p.accent}
+                width={reelDims.width}
+                height={reelDims.height}
+                fontSize={reelDims.fontSize}
               />
             ))}
           </div>
 
-          <div style={{ fontSize: '13px', color: '#9b9bab', letterSpacing: '0.04em' }}>
-            {N} participantes elegibles
-          </div>
 
           {/* Winner card */}
           {pendingWinner && !spinning && (
@@ -317,30 +344,33 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
         <div style={{
           background: 'white',
           borderRadius: '16px',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
+          padding: isPortrait ? '24px' : '20px',
+          display: (isPortrait && rechazados.length > 0) ? 'grid' : 'flex',
+          ...((isPortrait && rechazados.length > 0)
+            ? { gridTemplateColumns: '1fr 1fr' }
+            : { flexDirection: 'column' as const }
+          ),
+          gap: isPortrait ? '24px' : '16px',
           border: '1px solid #f0f0f4',
           boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
           overflow: 'hidden',
         }}>
           <div>
-            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#6b6b7b', marginBottom: '10px' }}>
+            <div style={{ fontSize: isPortrait ? '14px' : '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#6b6b7b', marginBottom: '10px' }}>
               Premios entregados · {entregados.length}
             </div>
             {entregados.length === 0 ? (
-              <div style={{ fontSize: '13px', color: '#9b9bab', padding: '12px 0' }}>Aún no hay ganadores confirmados</div>
+              <div style={{ fontSize: isPortrait ? '15px' : '13px', color: '#9b9bab', padding: '12px 0' }}>Aún no hay ganadores confirmados</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '40vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: isPortrait ? '50vh' : '40vh', overflowY: 'auto' }}>
                 {entregados.map((g, idx) => (
-                  <div key={g.id} style={{ background: p.accentSoft, border: `1px solid ${p.accent}40`, borderRadius: '10px', padding: '10px 12px' }}>
+                  <div key={g.id} style={{ background: p.accentSoft, border: `1px solid ${p.accent}40`, borderRadius: '10px', padding: isPortrait ? '14px 16px' : '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <HiTrophy style={{ color: p.accent }} />
                       <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: p.accent }}>#{idx + 1}</span>
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>{g.nombre}</div>
-                    <div style={{ fontSize: '11px', color: '#6b6b7b' }}>{g.empresa || '—'} · Ticket #{g.numeroTicket}</div>
+                    <div style={{ fontSize: isPortrait ? '16px' : '14px', fontWeight: 700, color: '#1a1a1a' }}>{g.nombre}</div>
+                    <div style={{ fontSize: isPortrait ? '13px' : '11px', color: '#6b6b7b' }}>{g.empresa || '—'} · Ticket #{g.numeroTicket}</div>
                   </div>
                 ))}
               </div>
@@ -348,14 +378,14 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
           </div>
           {rechazados.length > 0 && (
             <div>
-              <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#9b9bab', marginBottom: '8px' }}>
+              <div style={{ fontSize: isPortrait ? '14px' : '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#9b9bab', marginBottom: '8px' }}>
                 Ausentes · {rechazados.length}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '20vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: isPortrait ? '50vh' : '20vh', overflowY: 'auto' }}>
                 {rechazados.map(r => (
-                  <div key={r.id} style={{ background: '#fafafa', border: '1px solid #f0f0f4', borderRadius: '8px', padding: '8px 10px', fontSize: '12px' }}>
+                  <div key={r.id} style={{ background: '#fafafa', border: '1px solid #f0f0f4', borderRadius: '8px', padding: isPortrait ? '12px 14px' : '8px 10px', fontSize: isPortrait ? '14px' : '12px' }}>
                     <div style={{ color: '#1a1a1a' }}>{r.nombre}</div>
-                    <div style={{ color: '#9b9bab', fontSize: '10px' }}>Ticket #{r.numeroTicket}</div>
+                    <div style={{ color: '#9b9bab', fontSize: isPortrait ? '12px' : '10px' }}>Ticket #{r.numeroTicket}</div>
                   </div>
                 ))}
               </div>
@@ -375,7 +405,7 @@ export default function RifaSlot({ tipo }: { tipo: Tipo }) {
   )
 }
 
-function Reel({ idx, scrolled, animate, locked, accent }: { idx: number; scrolled: number; animate: boolean; locked: boolean; accent: string }) {
+function Reel({ idx, scrolled, animate, locked, accent, width, height, fontSize }: { idx: number; scrolled: number; animate: boolean; locked: boolean; accent: string; width: number; height: number; fontSize: number }) {
   const innerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -383,20 +413,20 @@ function Reel({ idx, scrolled, animate, locked, accent }: { idx: number; scrolle
     if (!el) return
     if (!animate) {
       el.style.transition = 'none'
-      el.style.transform = `translateY(-${scrolled * DIGIT_HEIGHT}px)`
+      el.style.transform = `translateY(-${scrolled * height}px)`
       void el.offsetHeight
       el.style.transition = ''
     } else {
       el.style.transition = ''
-      el.style.transform = `translateY(-${scrolled * DIGIT_HEIGHT}px)`
+      el.style.transform = `translateY(-${scrolled * height}px)`
     }
-  }, [animate, scrolled])
+  }, [animate, scrolled, height])
 
   return (
     <div
       style={{
-        width: REEL_WIDTH,
-        height: DIGIT_HEIGHT,
+        width,
+        height,
         overflow: 'hidden',
         borderRadius: '14px',
         border: `2px solid ${accent}80`,
@@ -412,7 +442,7 @@ function Reel({ idx, scrolled, animate, locked, accent }: { idx: number; scrolle
         ref={innerRef}
         style={{
           willChange: 'transform',
-          transform: `translateY(-${scrolled * DIGIT_HEIGHT}px)`,
+          transform: `translateY(-${scrolled * height}px)`,
           transition: animate ? `transform ${REEL_LOCK_MS[idx]}ms cubic-bezier(0.18, 0.85, 0.25, 1)` : 'none',
         }}
       >
@@ -420,11 +450,11 @@ function Reel({ idx, scrolled, animate, locked, accent }: { idx: number; scrolle
           <div
             key={i}
             style={{
-              height: DIGIT_HEIGHT,
+              height,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '130px',
+              fontSize: `${fontSize}px`,
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               fontWeight: 900,
               color: accent,
