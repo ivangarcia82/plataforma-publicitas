@@ -1,13 +1,17 @@
 // Admin endpoint — picks a random non-winner from the día's pool and marks them as ganador.
 // Supports two raffle types:
-//   - "premium": only tipoCliente === "cliente" can participate
-//   - "sencilla" (default): clientes + prospectos
+//   - "premium": only tipoCliente === "cliente" can participate, restricted to last 10 registered
+//   - "sencilla" (default): clientes + prospectos, restricted to last 30 registered
+// The "last N registered" window exists because many early registrants leave before the
+// raffle takes place, so only recent attendees are eligible.
 // Each raffle has its own ganoEn/entregado/rechazado state, so a client can win both independently.
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin, authErrorResponse } from '@/lib/auth'
 
 type Tipo = 'premium' | 'sencilla'
+
+const POOL_LIMIT: Record<Tipo, number> = { premium: 10, sencilla: 30 }
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +26,8 @@ export async function POST(request: NextRequest) {
 
     const candidates = await prisma.participanteRifa.findMany({
       where,
-      orderBy: { numeroTicket: 'asc' },
+      orderBy: { numeroTicket: 'desc' },
+      take: POOL_LIMIT[tipoRifa],
       include: { ejecutivo: { select: { nombre: true } } },
     })
 
