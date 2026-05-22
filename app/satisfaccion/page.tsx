@@ -189,10 +189,10 @@ export default function SatisfaccionPage() {
         <div style={{ maxWidth: '480px', width: '100%', background: 'white', borderRadius: '16px', padding: '36px 28px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', textAlign: 'center' }}>
           <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 6px', color: '#1a1a1a' }}>Expo Publicitas 2026</h1>
           <p style={{ fontSize: '14px', color: '#6b6b7b', margin: '0 0 28px' }}>
-            ¡Bienvenido! Antes de continuar, síguenos en nuestras redes y entérate de promociones, ideas y novedades.
+            ¡Gracias por visitarnos! Síguenos en nuestras redes y entérate de promociones, ideas y novedades.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <a
               href="https://instagram.com/generandoideasgi"
               target="_blank"
@@ -236,18 +236,6 @@ export default function SatisfaccionPage() {
               <FaLinkedinIn style={{ fontSize: '22px' }} /> Síguenos en LinkedIn
             </a>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setStep('tipo')}
-            className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center', fontSize: '15px', padding: '14px' }}
-          >
-            Continuar al formulario →
-          </button>
-          <p style={{ fontSize: '12px', color: '#9b9bab', margin: '14px 0 0' }}>
-            Llena el formulario para participar en la rifa de hoy.
-          </p>
         </div>
       </div>
     )
