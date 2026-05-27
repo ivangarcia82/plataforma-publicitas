@@ -13,6 +13,7 @@ import {
   HiOutlineArrowRightOnRectangle,
   HiOutlineSparkles, HiOutlineQrCode,
   HiOutlineBanknotes, HiOutlineUserCircle, HiOutlineCurrencyDollar,
+  HiOutlineDocumentArrowDown,
 } from 'react-icons/hi2'
 import { useCurrentUser } from '@/components/UserContext'
 
@@ -31,6 +32,7 @@ const adminSections: Section[] = [
       { href: '/staff/gastos', label: 'Gastos Staff', icon: HiOutlineBanknotes },
       { href: '/obsequios', label: 'Control de Obsequios', icon: HiOutlineGift },
       { href: '/citas-generadas', label: 'Citas Generadas', icon: HiOutlineClipboardDocumentList },
+      { href: '/admin/citas', label: 'Exportar Citas', icon: HiOutlineDocumentArrowDown },
     ],
   },
   {
